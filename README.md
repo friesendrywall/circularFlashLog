@@ -37,4 +37,4 @@ This library manages flash limitations by writing small portions into pages and 
 
 This project is licensed under the MIT License
 
-That said, please let me know of any bugs or improvements.
+Please let me know of any bugs or improvements.
