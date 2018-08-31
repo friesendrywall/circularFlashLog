@@ -20,21 +20,21 @@ extern uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len);
 In circularflash.h, the location of flash is defined as
 
 #define FLASH_LOGS_ADDRESS  0x200000
-#define FLASH_LOGS_LENGTH   0x1E0000UL
-#define FLASH_SECTOR_SIZE	0x1000
-#define FLASH_WRITE_SIZE	0x100
-#define FLASH_ERASED (0xFF)
+#define FLASH_LOGS_LENGTH   0x1E0000UL<br>
+#define FLASH_SECTOR_SIZE	0x1000<br>
+#define FLASH_WRITE_SIZE	0x100<br>
+#define FLASH_ERASED (0xFF)<br>
 
-FLASH_LOGS_ADDRESS defines the log start location
-FLASH_LOGS_LENGTH  defines the length
-FLASH_SECTOR_SIZE  defines the erase sector size
-FLASH_WRITE_SIZE   defines the minimum flash write size
-FLASH_ERASED       defines the erased state of flash
+FLASH_LOGS_ADDRESS defines the log start location<br>
+FLASH_LOGS_LENGTH  defines the length<br>
+FLASH_SECTOR_SIZE  defines the erase sector size<br>
+FLASH_WRITE_SIZE   defines the minimum flash write size<br>
+FLASH_ERASED       defines the erased state of flash<br>
 
 This library manages flash limitations by writing small portions into pages and surrounding them with FLASH_ERASED. This allows small incremental additions smaller than FLASH_WRITE_SIZE to the flash device.
 
 ## License
 
-This project is licensed under the MIT License because other license are so annoying.
+This project is licensed under the MIT License
 
 That said, please let me know of any bugs or improvements.
