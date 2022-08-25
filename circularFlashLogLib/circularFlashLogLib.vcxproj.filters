@@ -27,12 +27,15 @@
     <ClInclude Include="circularflash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="circularFlashConfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="circularFlashLogLib.cpp">
+    <ClCompile Include="circularFlashLogLib.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="circularflash.c">

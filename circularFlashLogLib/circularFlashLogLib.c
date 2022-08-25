@@ -1,17 +1,37 @@
-// circularFlashLogLib.cpp : Defines the entry point for the console application.
-//
+/**
+* MIT License
+* 
+* Copyright (c) 2022 Erik Friesen
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*/
 
-// ConsoleApplication20.cpp : Defines the entry point for the console application.
-//
-
-#include "stdafx.h"
+/**
+* Test framework
+*/
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-
+#include "circularFlashConfig.h"
 #include "circularflash.h"
 #define FlashLogName "flashlog.bin"
 
@@ -60,11 +80,14 @@ uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len){
 }
 
 
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
 	uint32_t i;
 	int32_t rem;
 	FakeFlash = (unsigned char*)malloc(FLASH_LOGS_LENGTH);
+	if (FakeFlash == NULL) {
+		return -1;
+	}
 	unsigned char * Read;
 	FILE * FF = fopen(FlashLogName, "rb");
 	if (FF != NULL){
@@ -80,8 +103,11 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	uint32_t remaining, index, len;
 
-	char * printbuf = (char*)malloc(1024);
-	len = sprintf(printbuf, "New log test at %i UTC\r\n", t);
+	char* printbuf = (char*)malloc(1024);
+	if (printbuf == NULL) {
+		return -1;
+	}
+	len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
 	circularWriteLog((unsigned char*)printbuf, len);
 	Read = circularReadLines(1, &len);
 	if (memcmp(Read, printbuf, len)){
@@ -93,7 +119,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		circularWriteLog((unsigned char*)printbuf, len);
 		Read = circularReadLines(1, &len);
 		if (memcmp(Read, printbuf, len)){
-			printf("Line %i doesn't match, test failed\r\n");
+			printf("Line %i doesn't match, test failed\r\n", i);
 			free(Read);
 			break;
 		}

@@ -1,2 +1,12 @@
 *.opensdf
 /Debug/
+*.idb
+*.bak
+*.recipe
+.vs/
+*.pdb
+/Debug/*
+*.bin
+/circularFlashLogLib/Debug/
+*.tlog
+*.obj
