@@ -9,8 +9,8 @@
 
 #define USE_STATIC_ALLOCATION
 
-#define FLASH_MUTEX_ENTER()
-#define FLASH_MUTEX_EXIT()
+#define FLASH_MUTEX_ENTER(x)
+#define FLASH_MUTEX_EXIT(x)
 #ifndef USE_STATIC_ALLOCATION
 #define FLASH_MALLOC malloc
 #define FLASH_FREE free

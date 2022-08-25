@@ -25,7 +25,7 @@
 /**
 * Test framework
 */
-#include <stdarg.h>
+// #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,7 +39,7 @@ unsigned char *FakeFlash;
 #define FLASH_LOGS_ADDRESS 0x200000
 #define FLASH_LOGS_LENGTH 0x1E0000
 
-uint32_t circFlashRead(uint32_t FlashAddress, unsigned char *buff,
+uint32_t circFlashRead(uint32_t FlashAddress, uint8_t *buff,
                        uint32_t len) {
   if (FlashAddress < FLASH_LOGS_ADDRESS ||
       FlashAddress >= FLASH_LOGS_ADDRESS + FLASH_LOGS_LENGTH) {
@@ -54,7 +54,7 @@ uint32_t circFlashRead(uint32_t FlashAddress, unsigned char *buff,
   return len;
 }
 
-uint32_t circFlashWrite(uint32_t FlashAddress, unsigned char *buff,
+uint32_t circFlashWrite(uint32_t FlashAddress, uint8_t *buff,
                         uint32_t len) {
   uint32_t i;
   if (FlashAddress < FLASH_LOGS_ADDRESS ||
@@ -86,16 +86,19 @@ uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len) {
   return len;
 }
 
+int testNew(void) {
+
+}
+
 
 int main(int argc, char *argv[]) {
   uint32_t i;
-  int32_t rem;
-  uint8_t wBuff[FLASH_WRITE_SIZE];
+  uint8_t wBuff[FLASH_WRITE_SIZE * 2];
   circ_log_t log = {.name = "LOGS",
                     .baseAddress = FLASH_LOGS_ADDRESS,
                     .logsLength = FLASH_LOGS_LENGTH,
                     .wBuff = wBuff,
-                    .wBuffLen = FLASH_WRITE_SIZE};
+                    .wBuffLen = sizeof(wBuff)};
 
   FakeFlash = (unsigned char *)malloc(FLASH_LOGS_LENGTH);
   if (FakeFlash == NULL) {
@@ -110,17 +113,12 @@ int main(int argc, char *argv[]) {
     memset(FakeFlash, FLASH_ERASED, FLASH_LOGS_LENGTH);
   }
 #ifdef USE_STATIC_ALLOCATION
-  uint8_t *workBuff = malloc(FLASH_SECTOR_SIZE);
-  if (workBuff == NULL) {
-    return -1;
-  }
-  // TODO: try different sizes
-  if (!circularLogInit(&log, workBuff, FLASH_SECTOR_SIZE)) {
+  if (circularLogInit(&log) != CIRC_LOG_ERR_NONE) {
     printf("Init error\r\n");
     return -1;
   };
 #else
-  if (!circularLogInit(&log)) {
+  if (circularLogInit(&log) != CIRC_LOG_ERR_NONE) {
     printf("Init error\r\n");
     return -1;
   };
@@ -128,7 +126,7 @@ int main(int argc, char *argv[]) {
   
   time_t t = time(NULL);
 
-  uint32_t remaining, index, len;
+  uint32_t len;
 
   char *printbuf = (char *)malloc(1024);
   if (printbuf == NULL) {
@@ -172,7 +170,7 @@ int main(int argc, char *argv[]) {
     free(Read);
   }
 
-  for (i = 0; i < 100; i++) {
+  for (i = 0; i < 10000; i++) {
     len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
                   rand(), rand());
     circularWriteLog(&log, (unsigned char *)printbuf, len);

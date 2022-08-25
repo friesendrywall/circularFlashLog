@@ -28,57 +28,36 @@
 #include <stdint.h>
 #define FLASH_ERASED (0xFF)
 #define FLASH_MIN_BUFF 0x100
-// #define FLASH_SECTORS (FLASH_LOGS_LENGTH / FLASH_SECTOR_SIZE)
-#define FLASH_SECTORS(length) (length / FLASH_SECTOR_SIZE)
-#define FLASH_WORK_BUFF_SIZE (FLASH_WRITE_SIZE * 2)
+#define FLASH_SECTORS(logLength) (logLength / FLASH_SECTOR_SIZE)
 
 typedef struct {
   char *name;
   uint32_t baseAddress;
-  int32_t logsLength;
+  uint32_t logsLength;
   uint8_t * wBuff;
   uint32_t wBuffLen;
+  void *osMutex;
   int32_t LogFlashTailPtr;
   int32_t LogFlashHeadPtr;
-  uint32_t circLogInit;
+  uint8_t circLogInit;
 } circ_log_t;
 
-enum {
-    CIRC_LOG_ERR_NONE,
-    CIRC_LOG_ERR_NOT_INITIALIZED
-};
+enum { CIRC_LOG_ERR_NONE, CIRC_LOG_ERR_IO, CIRC_LOG_ERR_API, CIRC_LOG_ERR_ALLOC };
 
-int circularWriteLog(unsigned char *buf, int len);
+uint32_t circularLogInit(circ_log_t *log);
+uint32_t circularClearLog(circ_log_t *log);
+uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len);
+uint32_t circularReadLogPartial(circ_log_t *log, uint8_t *buff,
+                               uint32_t seek, uint32_t desiredlen,
+                               uint32_t *remaining);
 #ifdef USE_STATIC_ALLOCATION
-
-typedef struct {
-  int32_t headPtr;
-  int32_t tailPtr;
-  uint32_t readIndex;
-  uint32_t length;
-} LOG_FILE;
-
-int circularLogInit(circ_log_t *log, uint8_t *buf, uint32_t bufLen);
-
-uint32_t circularOpenLog(circ_log_t *log, LOG_FILE *logFile);
-
-uint32_t circularReadLog(circ_log_t *log, LOG_FILE *logFile, uint8_t *buff,
-                         uint32_t len);
 
 uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
                            uint32_t lines, char *filter);
 #else
-int circularLogInit(void);
-unsigned char *circularReadLog(circ_log_t *log, uint32_t *len);
-unsigned char *circularReadLines(circ_log_t *log, uint32_t lines,
+uint8_t *circularReadLog(circ_log_t *log, uint32_t *len);
+uint8_t *circularReadLines(circ_log_t *log, uint32_t lines,
                                  uint32_t *outlen);
-int32_t circularReadLogPartial(circ_log_t *log, unsigned char *buff,
-                               int32_t seek, int32_t desiredlen,
-                               int32_t *remaining);
 #endif
-
-
-
-int32_t circularClearLog(void);
 
 #endif
