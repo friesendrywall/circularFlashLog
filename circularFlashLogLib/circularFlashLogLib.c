@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
     free(Read);
   }
 
-  for (i = 0; i < 100; i++) {
+  for (i = 0; i < 10000; i++) {
     len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
                   rand(), rand());
     circularWriteLog((unsigned char *)printbuf, len);
@@ -179,6 +179,9 @@ int main(int argc, char *argv[]) {
       return -1;
     }
     circularReadLines(Read, LINE_ESTIMATE_FACTOR * 10, 10, "Find something");
+#else
+    Read = circularReadLines(1, &len);
+#endif
     if (memcmp(Read, "Find something line", 19)) {
       printf("Line %i doesn't match, test failed\r\n", i);
       free(Read);
@@ -186,9 +189,6 @@ int main(int argc, char *argv[]) {
     } else {
       printf("\rLine %i passed:", i);
     }
-#else
-    Read = circularReadLines(1, &len);
-#endif
     free(Read);
   }
 

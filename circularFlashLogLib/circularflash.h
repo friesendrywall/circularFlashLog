@@ -43,20 +43,12 @@ extern uint32_t circFlashWrite(uint32_t FlashAddress, uint8_t *buff,
 extern uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len);
 
 int circularWriteLog(unsigned char *buf, int len);
+int32_t circularReadLogPartial(unsigned char *buff, int32_t seek,
+                               int32_t desiredlen, int32_t *remaining);
+
 #ifdef USE_STATIC_ALLOCATION
 
-typedef struct {
-  int32_t headPtr;
-  int32_t tailPtr;
-  uint32_t readIndex;
-  uint32_t length;
-} LOG_FILE;
-
 int circularLogInit(uint8_t *buf, uint32_t bufLen);
-
-uint32_t circularOpenLog(LOG_FILE *logFile);
-
-uint32_t circularReadLog(LOG_FILE *logFile, uint8_t *buff, uint32_t len);
 
 uint32_t circularReadLines(uint8_t *buff, uint32_t buffSize, uint32_t lines,
                            char *filter);
@@ -64,8 +56,6 @@ uint32_t circularReadLines(uint8_t *buff, uint32_t buffSize, uint32_t lines,
 int circularLogInit(void);
 unsigned char *circularReadLog(uint32_t *len);
 unsigned char *circularReadLines(uint32_t lines, uint32_t *outlen);
-int32_t circularReadLogPartial(unsigned char *buff, int32_t seek,
-                               int32_t desiredlen, int32_t *remaining);
 #endif
 
 

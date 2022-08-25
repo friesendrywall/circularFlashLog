@@ -72,8 +72,8 @@ static int32_t calculateLogSpace(void) {
 /* This function inserts, assuming that writing 1's won't change anything*/
 static uint32_t circFlashInsertWrite(uint32_t FlashAddress, unsigned char *buff,
                                      uint32_t len) {
-  uint32_t rem, end, begin, WriteLen, res;
-  static uint8_t tbuff[FLASH_WRITE_SIZE * 2];
+  uint32_t i, rem, end, begin, WriteLen, res;
+  static uint8_t tbuff[STATIC_WRITE_BUFF_SIZE];
   rem = FlashAddress % FLASH_WRITE_SIZE;
   begin = FlashAddress - rem;
   end = FlashAddress + len; // Extend up to boundary
@@ -82,19 +82,43 @@ static uint32_t circFlashInsertWrite(uint32_t FlashAddress, unsigned char *buff,
   } else {
     WriteLen = (((end - begin) / FLASH_WRITE_SIZE)) * FLASH_WRITE_SIZE;
   }
-  if (tbuff == NULL) {
-    FLASH_DEBUG("FLASH: FLASH_MALLOC error\r\n");
-    return 0;
+  if (WriteLen > STATIC_WRITE_BUFF_SIZE) {
+    uint32_t startLen = len;
+    if (rem) {
+      memset(tbuff, FLASH_ERASED, FLASH_WRITE_SIZE);
+      memcpy(&tbuff[rem], buff, FLASH_WRITE_SIZE - rem);
+      res = circFlashWrite(begin, tbuff, FLASH_WRITE_SIZE);
+      if (res != FLASH_WRITE_SIZE) {
+        return 0;
+      }
+      len -= (FLASH_WRITE_SIZE - rem);
+      buff += (FLASH_WRITE_SIZE - rem);
+      begin += FLASH_WRITE_SIZE;
+      WriteLen -= FLASH_WRITE_SIZE;
+    }
+    // Send the rest
+    for (i = 0; i < WriteLen; i += FLASH_WRITE_SIZE) {
+      memset(tbuff, FLASH_ERASED, FLASH_WRITE_SIZE);
+      memcpy(tbuff, &buff[i],
+             len > FLASH_WRITE_SIZE ? FLASH_WRITE_SIZE : len);
+      res = circFlashWrite(begin + i, tbuff, FLASH_WRITE_SIZE);
+      if (res != FLASH_WRITE_SIZE) {
+        return 0;
+      }
+      len -= FLASH_WRITE_SIZE;
+    }
+    return startLen;
+  } else {
+    memset(tbuff, FLASH_ERASED, WriteLen);
+    memcpy(&tbuff[rem], buff, len);
+    res = circFlashWrite(begin, tbuff, WriteLen);
+    return res == WriteLen ? len : 0;
   }
-  memset(tbuff, FLASH_ERASED, WriteLen);
-  memcpy(&tbuff[rem], buff, len);
-  res = circFlashWrite(begin, tbuff, WriteLen);
-  return res == WriteLen ? len : 0;
 }
 
 /**
-* seek = Bytes from start of log
-*/
+ * seek = Bytes from start of log
+ */
 int32_t circularReadLogPartial(unsigned char *buff, int32_t seek,
                                int32_t desiredlen, int32_t *remaining) {
   int32_t ret = 0;
@@ -177,82 +201,6 @@ badexit:
 }
 
 #ifdef USE_STATIC_ALLOCATION
-
-uint32_t circularOpenLog(LOG_FILE *logFile) {
-  unsigned char *ret = NULL;
-  memset(&logFile, 0, sizeof(LOG_FILE));
-  if (!circLogInit) {
-    logFile->length = 0;
-    return CIRC_LOG_ERR_NOT_INITIALIZED;
-  }
-  FLASH_MUTEX_ENTER();
-  int space = calculateLogSpace();
-  if (space > 0) {
-    logFile->headPtr = LogFlashHeadPtr;
-    logFile->tailPtr = LogFlashTailPtr;
-    logFile->length = space;
-    return CIRC_LOG_ERR_NONE;
-  } else {
-    return CIRC_LOG_ERR_NONE;
-  }
-}
-
-uint32_t circularReadLog(LOG_FILE *logFile, uint8_t *buff, uint32_t len) {
-  uint32_t res, firstlen, reqLen;
-  if (len > logFile->length) {
-    len = logFile->length;
-  }
-  if (len == 0) {
-    return 0;
-  }
-  if (logFile->headPtr > logFile->tailPtr) {
-#ifdef LOG_CACHE_INVALIDATE
-    LOG_CACHE_INVALIDATE(buff, len);
-#endif
-    res = circFlashRead(FLASH_LOGS_ADDRESS + logFile->tailPtr, buff, len);
-    logFile->tailPtr += len;
-    logFile->length -= len;
-    if (res != len) {
-      FLASH_DEBUG("FLASH: IO error\r\n");
-    }
-    return len;
-  } else if (LogFlashHeadPtr < LogFlashTailPtr) {
-    reqLen = len;
-    firstlen = FLASH_LOGS_LENGTH - logFile->tailPtr;
-#ifdef LOG_CACHE_INVALIDATE
-    LOG_CACHE_INVALIDATE(buff, len);
-#endif
-    if (len <= firstlen) {
-      res = circFlashRead(FLASH_LOGS_ADDRESS + logFile->tailPtr, buff, len);
-      if (res != len) {
-        FLASH_DEBUG("FLASH: IO error\r\n");
-      }
-      logFile->tailPtr += len;
-      if (logFile->tailPtr == FLASH_LOGS_LENGTH) {
-        logFile->tailPtr = 0;
-      }
-      logFile->length -= len;
-      return len;
-    }
-    res = circFlashRead(FLASH_LOGS_ADDRESS + logFile->tailPtr, buff, firstlen);
-    if (res != firstlen) {
-      FLASH_DEBUG("FLASH: IO error\r\n");
-    }
-    logFile->length -= firstlen;
-    len -= firstlen;
-    if (len > (uint32_t)logFile->headPtr) {
-      len = logFile->headPtr;
-    }
-    res = circFlashRead(FLASH_LOGS_ADDRESS, &buff[firstlen], len);
-    if (res != len) {
-      FLASH_DEBUG("FLASH: IO error\r\n");
-    }
-    logFile->tailPtr = len;
-    return len;
-  } else {
-    return 0;
-  }
-}
 
 uint32_t circularReadLines(uint8_t *buff, uint32_t buffSize, uint32_t lines,
                            char *filter) {
@@ -543,6 +491,7 @@ int circularLogInit(void) {
   }
 #else
   unsigned char *buf = FLASH_MALLOC(FLASH_SECTOR_SIZE);
+  uint32_t bufLen = FLASH_SECTOR_SIZE;
 #endif
   if (buf == NULL) {
     return 0;
