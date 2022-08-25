@@ -36,6 +36,8 @@
 #define FlashLogName "flashlog.bin"
 
 unsigned char *FakeFlash;
+#define FLASH_LOGS_ADDRESS 0x200000
+#define FLASH_LOGS_LENGTH 0x1E0000
 
 uint32_t circFlashRead(uint32_t FlashAddress, unsigned char *buff,
                        uint32_t len) {
@@ -88,6 +90,13 @@ uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len) {
 int main(int argc, char *argv[]) {
   uint32_t i;
   int32_t rem;
+  uint8_t wBuff[FLASH_WRITE_SIZE];
+  circ_log_t log = {.name = "LOGS",
+                    .baseAddress = FLASH_LOGS_ADDRESS,
+                    .logsLength = FLASH_LOGS_LENGTH,
+                    .wBuff = wBuff,
+                    .wBuffLen = FLASH_WRITE_SIZE};
+
   FakeFlash = (unsigned char *)malloc(FLASH_LOGS_LENGTH);
   if (FakeFlash == NULL) {
     return -1;
@@ -106,12 +115,12 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   // TODO: try different sizes
-  if (!circularLogInit(workBuff, FLASH_SECTOR_SIZE)) {
+  if (!circularLogInit(&log, workBuff, FLASH_SECTOR_SIZE)) {
     printf("Init error\r\n");
     return -1;
   };
 #else
-  if (!circularLogInit()) {
+  if (!circularLogInit(&log)) {
     printf("Init error\r\n");
     return -1;
   };
@@ -126,15 +135,15 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
-  circularWriteLog((unsigned char *)printbuf, len);
+  circularWriteLog(&log, (unsigned char *)printbuf, len);
 #ifdef USE_STATIC_ALLOCATION
   Read = malloc(LINE_ESTIMATE_FACTOR);
   if (Read == NULL) {
     return -1;
   }
-  circularReadLines(Read, LINE_ESTIMATE_FACTOR, 1, NULL);
+  circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL);
 #else
-  Read = circularReadLines(1, &len);
+  Read = circularReadLines(&log, 1, &len);
 #endif
   if (memcmp(Read, printbuf, len)) {
     printf("Doesn't match\r\n");
@@ -143,15 +152,15 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < 100000; i++) {
     len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
                   rand(), rand());
-    circularWriteLog((unsigned char *)printbuf, len);
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
 #ifdef USE_STATIC_ALLOCATION
     Read = malloc(LINE_ESTIMATE_FACTOR);
     if (Read == NULL) {
       return -1;
     }
-    circularReadLines(Read, LINE_ESTIMATE_FACTOR, 1, NULL);
+    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL);
 #else
-    Read = circularReadLines(1, &len);
+    Read = circularReadLines(&log, 1, &len);
 #endif
     if (memcmp(Read, printbuf, len)) {
       printf("Line %i doesn't match, test failed\r\n", i);
@@ -166,19 +175,23 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < 100; i++) {
     len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
                   rand(), rand());
-    circularWriteLog((unsigned char *)printbuf, len);
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
     len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
                   rand(), rand());
-    circularWriteLog((unsigned char *)printbuf, len);
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
     len = sprintf(printbuf, "Find something line %i unique %i %i\r\n", i,
                   rand(), rand());
-    circularWriteLog((unsigned char *)printbuf, len);
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
 #ifdef USE_STATIC_ALLOCATION
     Read = malloc(LINE_ESTIMATE_FACTOR * 10);
     if (Read == NULL) {
       return -1;
     }
-    circularReadLines(Read, LINE_ESTIMATE_FACTOR * 10, 10, "Find something");
+    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR * 10, 10,
+                      "Find something");
+#else
+    Read = circularReadLines(&log, 1, &len);
+#endif
     if (memcmp(Read, "Find something line", 19)) {
       printf("Line %i doesn't match, test failed\r\n", i);
       free(Read);
@@ -186,9 +199,6 @@ int main(int argc, char *argv[]) {
     } else {
       printf("\rLine %i passed:", i);
     }
-#else
-    Read = circularReadLines(1, &len);
-#endif
     free(Read);
   }
 

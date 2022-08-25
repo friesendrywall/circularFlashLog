@@ -2,8 +2,8 @@
 #define __CIRCULARFLASHCONFIG_H
 #include <stdint.h>
 // Configuration defines
-#define FLASH_LOGS_ADDRESS 0x200000
-#define FLASH_LOGS_LENGTH 0x1E0000
+// #define FLASH_LOGS_ADDRESS 0x200000
+// #define FLASH_LOGS_LENGTH 0x1E0000
 #define FLASH_SECTOR_SIZE 0x1000
 #define FLASH_WRITE_SIZE 0x100
 
