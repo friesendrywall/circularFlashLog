@@ -42,7 +42,7 @@ typedef struct {
   uint8_t circLogInit;
 } circ_log_t;
 
-enum { CIRC_LOG_ERR_NONE, CIRC_LOG_ERR_IO, CIRC_LOG_ERR_API, CIRC_LOG_ERR_ALLOC };
+enum { CIRC_LOG_ERR_NONE, CIRC_LOG_ERR_IO, CIRC_LOG_ERR_API };
 
 uint32_t circularLogInit(circ_log_t *log);
 uint32_t circularClearLog(circ_log_t *log);
@@ -50,14 +50,8 @@ uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len);
 uint32_t circularReadLogPartial(circ_log_t *log, uint8_t *buff,
                                uint32_t seek, uint32_t desiredlen,
                                uint32_t *remaining);
-#ifdef USE_STATIC_ALLOCATION
 
 uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
                            uint32_t lines, char *filter);
-#else
-uint8_t *circularReadLog(circ_log_t *log, uint32_t *len);
-uint8_t *circularReadLines(circ_log_t *log, uint32_t lines,
-                                 uint32_t *outlen);
-#endif
 
 #endif

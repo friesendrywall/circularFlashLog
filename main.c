@@ -32,7 +32,7 @@
 #include <time.h>
 
 #include "circularFlashConfig.h"
-#include "circularflash.h"
+#include "src/circularflash.h"
 #define FlashLogName "flashlog.bin"
 
 unsigned char *FakeFlash;
@@ -86,10 +86,17 @@ uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len) {
   return len;
 }
 
-int testNew(void) {
-
+void assertHandler(char *file, int line) {
+  printf("CIRCULAR_LOG_ASSERT(%s:%i\r\n", file, line);
+  int a = 0;
+#ifdef _DEBUG
+  while (1) {
+    a++;
+  }
+#else
+  exit(1);
+#endif
 }
-
 
 int main(int argc, char *argv[]) {
   uint32_t i;
@@ -112,17 +119,11 @@ int main(int argc, char *argv[]) {
   } else {
     memset(FakeFlash, FLASH_ERASED, FLASH_LOGS_LENGTH);
   }
-#ifdef USE_STATIC_ALLOCATION
+
   if (circularLogInit(&log) != CIRC_LOG_ERR_NONE) {
     printf("Init error\r\n");
     return -1;
   };
-#else
-  if (circularLogInit(&log) != CIRC_LOG_ERR_NONE) {
-    printf("Init error\r\n");
-    return -1;
-  };
-#endif
   
   time_t t = time(NULL);
 
@@ -134,15 +135,11 @@ int main(int argc, char *argv[]) {
   }
   len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
   circularWriteLog(&log, (unsigned char *)printbuf, len);
-#ifdef USE_STATIC_ALLOCATION
   Read = malloc(LINE_ESTIMATE_FACTOR);
   if (Read == NULL) {
     return -1;
   }
   circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL);
-#else
-  Read = circularReadLines(&log, 1, &len);
-#endif
   if (memcmp(Read, printbuf, len)) {
     printf("Doesn't match\r\n");
   }
@@ -151,15 +148,11 @@ int main(int argc, char *argv[]) {
     len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
                   rand(), rand());
     circularWriteLog(&log, (unsigned char *)printbuf, len);
-#ifdef USE_STATIC_ALLOCATION
     Read = malloc(LINE_ESTIMATE_FACTOR);
     if (Read == NULL) {
       return -1;
     }
     circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL);
-#else
-    Read = circularReadLines(&log, 1, &len);
-#endif
     if (memcmp(Read, printbuf, len)) {
       printf("Line %i doesn't match, test failed\r\n", i);
       free(Read);
@@ -180,16 +173,14 @@ int main(int argc, char *argv[]) {
     len = sprintf(printbuf, "Find something line %i unique %i %i\r\n", i,
                   rand(), rand());
     circularWriteLog(&log, (unsigned char *)printbuf, len);
-#ifdef USE_STATIC_ALLOCATION
+
     Read = malloc(LINE_ESTIMATE_FACTOR * 10);
     if (Read == NULL) {
       return -1;
     }
     circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR * 10, 10,
                       "Find something");
-#else
-    Read = circularReadLines(&log, 1, &len);
-#endif
+
     if (memcmp(Read, "Find something line", 19)) {
       printf("Line %i doesn't match, test failed\r\n", i);
       free(Read);

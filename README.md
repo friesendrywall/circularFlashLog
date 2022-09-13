@@ -17,14 +17,14 @@ extern uint32_t circFlashRead(uint32_t FlashAddress, unsigned char * buff, uint3
 extern uint32_t circFlashWrite(uint32_t FlashAddress, unsigned char * buff, uint32_t len);
 extern uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len);
 
-In circularflash.h, the location of flash is defined as
-
+In circularFlashConfig.h, the location of flash is defined as
+```
 #define FLASH_LOGS_ADDRESS  0x200000
 #define FLASH_LOGS_LENGTH   0x1E0000UL<br>
 #define FLASH_SECTOR_SIZE	0x1000<br>
 #define FLASH_WRITE_SIZE	0x100<br>
 #define FLASH_ERASED (0xFF)<br>
-
+```
 FLASH_LOGS_ADDRESS defines the log start location<br>
 FLASH_LOGS_LENGTH  defines the length<br>
 FLASH_SECTOR_SIZE  defines the erase sector size<br>

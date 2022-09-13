@@ -122,6 +122,8 @@ static uint32_t circFlashInsertWrite(circ_log_t *log, uint32_t FlashAddress,
 uint32_t circularReadLogPartial(circ_log_t *log, uint8_t *buff,
                                uint32_t seek, uint32_t desiredlen,
                                uint32_t *remaining) {
+  CIRCULAR_LOG_ASSERT(log != NULL);
+  CIRCULAR_LOG_ASSERT(buff != NULL);
   uint32_t ret = 0;
   uint32_t res, firstlen, secondlen;
   if (!log->circLogInit) {
@@ -201,8 +203,6 @@ badexit:
   return ret;
 }
 
-#ifdef USE_STATIC_ALLOCATION
-
 uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
                            uint32_t lines, char *filter) {
   uint32_t ret = 0;
@@ -210,6 +210,8 @@ uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
   int32_t space, seek, i;
   uint32_t llen, searchLen;
   uint32_t lastStart = 0;
+  CIRCULAR_LOG_ASSERT(log != NULL);
+  CIRCULAR_LOG_ASSERT(buff != NULL);
   if (buffSize < LINE_ESTIMATE_FACTOR) {
     return 0;
   }
@@ -282,125 +284,8 @@ uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
   return ret;
 }
 
-#else
-/*
- * Returns a LOG_MALLOC'ed pointer to the log
- */
-uint8_t *circularReadLog(circ_log_t *log, uint32_t *len) {
-  uint8_t *ret = NULL;
-  uint32_t res, firstlen;
-  static char NoLogs[] = "Empty log";
-  if (!log->circLogInit) {
-    *len = 0;
-    return NULL;
-  }
-  FLASH_MUTEX_ENTER(log->osMutex);
-  int space = calculateLogSpace(log);
-  if (space > 0) {
-    ret = LOG_MALLOC(space + 1);
-    if (ret == NULL) {
-      FLASH_DEBUG("FLASH: Malloc error\r\n");
-      goto badexit;
-    }
-    if (log->LogFlashHeadPtr > log->LogFlashTailPtr) {
-#ifdef LOG_CACHE_INVALIDATE
-      LOG_CACHE_INVALIDATE(ret, space + 1);
-#endif
-      res = circFlashRead(log->baseAddress + log->LogFlashTailPtr, ret, space);
-      *len = res + 1;
-      if (res != space) {
-        FLASH_DEBUG("FLASH: (%s) IO error\r\n", log->name);
-      }
-      ret[res] = 0;
-    } else if (log->LogFlashHeadPtr < log->LogFlashTailPtr) {
-      firstlen = log->logsLength - log->LogFlashTailPtr;
-#ifdef LOG_CACHE_INVALIDATE
-      LOG_CACHE_INVALIDATE(ret, space + 1);
-#endif
-      res = circFlashRead(log->baseAddress + log->LogFlashTailPtr, ret, firstlen);
-      if (res != firstlen) {
-        FLASH_DEBUG("FLASH: (%s) IO error\r\n", log->name);
-      }
-      res = circFlashRead(log->baseAddress, &ret[firstlen], log->LogFlashHeadPtr);
-      if (res != log->LogFlashHeadPtr) {
-        FLASH_DEBUG("FLASH: (%s) IO error\r\n", log->name);
-      }
-      *len = space + 1;
-      ret[space] = 0;
-    }
-  } else {
-    ret = LOG_MALLOC(sizeof(NoLogs));
-    if (ret) {
-      *len = sizeof(NoLogs);
-      memcpy(ret, NoLogs, sizeof(NoLogs));
-    }
-  }
-badexit:
-  FLASH_MUTEX_EXIT(log->osMutex);
-  return ret;
-}
-
-/*
- * Returns a LOG_MALLOC'ed pointer to the number of log lines requested
- */
-uint8_t *circularReadLines(circ_log_t *log, uint32_t lines,
-                                 uint32_t *outlen) {
-  uint32_t llen = 0;
-  int32_t i, seek;
-  uint32_t t;
-  uint8_t *ret;
-  if (!lines) {
-    *outlen = 0;
-    return 0;
-  }
-  lines++;
-  if (!log->circLogInit) {
-    *outlen = 0;
-    return NULL;
-  }
-  unsigned char *tmp = LOG_MALLOC(LINE_ESTIMATE_FACTOR * lines);
-  if (tmp) {
-    FLASH_MUTEX_ENTER(log->osMutex);
-    seek = calculateLogSpace(log);
-    seek -= LINE_ESTIMATE_FACTOR * lines;
-    if (seek < 0) {
-      seek = 0;
-    }
-    FLASH_MUTEX_EXIT(log->osMutex);
-#ifdef LOG_CACHE_INVALIDATE
-    LOG_CACHE_INVALIDATE(tmp, LINE_ESTIMATE_FACTOR * lines);
-#endif
-    llen = circularReadLogPartial(log, tmp, seek, LINE_ESTIMATE_FACTOR * lines, &i);
-    for (i = llen - 1; i >= 0; i--) {
-      if (tmp[i] == '\n') {
-        lines--;
-        if (lines == 0) {
-          i++;
-          t = llen - i;
-          ret = LOG_MALLOC(t);
-          if (ret == NULL) {
-            LOG_FREE(tmp);
-            return NULL;
-          }
-          memcpy(ret, &tmp[i], t);
-          LOG_FREE(tmp);
-          *outlen = t;
-          return ret;
-        }
-      } else if (tmp[i] < 0x0A) {
-        tmp[i] = '?';
-      }
-    }
-    *outlen = llen;
-    return tmp;
-  } else {
-    *outlen = 0;
-  }
-  return NULL;
-}
-#endif
-
 uint32_t circularClearLog(circ_log_t *log) {
+  CIRCULAR_LOG_ASSERT(log != NULL);
   FLASH_MUTEX_ENTER(log->osMutex);
   if (circFlashErase(log->baseAddress, log->logsLength) !=
       log->logsLength) {
@@ -422,6 +307,8 @@ badexit:
 uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len) {
   int32_t EraseSpace;
   uint32_t res, firstlen;
+  CIRCULAR_LOG_ASSERT(log != NULL);
+  CIRCULAR_LOG_ASSERT(buf != NULL);
   if (len > FLASH_SECTOR_SIZE) {
     len = FLASH_SECTOR_SIZE;
   }
@@ -486,9 +373,10 @@ badexit:
 
 uint32_t circularLogInit(circ_log_t *log) {
   uint32_t res, i, si;
+  CIRCULAR_LOG_ASSERT(log != NULL);
+  CIRCULAR_LOG_ASSERT(log->wBuff != NULL);
   log->LogFlashTailPtr = -1;
   log->LogFlashHeadPtr = -1;
-#ifdef USE_STATIC_ALLOCATION
   if (log->wBuffLen < FLASH_MIN_BUFF) {
     FLASH_DEBUG("FLASH: (%s) Buffer size %u < %i\r\n", log->name, log->wBuffLen,
                 FLASH_MIN_BUFF);
@@ -496,13 +384,6 @@ uint32_t circularLogInit(circ_log_t *log) {
   }
   uint32_t bufLen = log->wBuffLen;
   uint8_t *buf = log->wBuff;
-#else
-  uint8_t *buf = FLASH_MALLOC(FLASH_SECTOR_SIZE);
-  uint32_t bufLen = FLASH_SECTOR_SIZE;
-#endif
-  if (buf == NULL) {
-    return CIRC_LOG_ERR_ALLOC;
-  }
   res = circFlashRead(log->baseAddress, buf, 4);
   if (res != 4) {
     goto badexit;
@@ -601,16 +482,10 @@ goodexit:
               calculateErasedSpace(log));
   FLASH_DEBUG("FLASH: (%s) Logs ----  0x%X\r\n", log->name,
               calculateLogSpace(log));
-#ifndef USE_STATIC_ALLOCATION
-  FLASH_FREE(buf);
-#endif
   log->circLogInit = 1;
   return CIRC_LOG_ERR_NONE;
 
 badexit:
   FLASH_DEBUG("FLASH: (%s) Device error\r\n", log->name);
-#ifndef USE_STATIC_ALLOCATION
-  FLASH_FREE(buf);
-#endif
   return CIRC_LOG_ERR_IO;
 }
