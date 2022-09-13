@@ -12,11 +12,12 @@ This is a two file solution for circular logging text into a serial flash device
 however much flash may be desired. Its target is embedded devices. 
 Configuration of flash device is in the circularFlash.h header file.  
 Interaction with your flash device will happen in 3 user defined functions,
-	
+
+```	
 extern uint32_t circFlashRead(uint32_t FlashAddress, unsigned char * buff, uint32_t len);
 extern uint32_t circFlashWrite(uint32_t FlashAddress, unsigned char * buff, uint32_t len);
 extern uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len);
-
+```
 In circularFlashConfig.h, define the core flash information
 ```
 #define FLASH_SECTOR_SIZE	0x1000
