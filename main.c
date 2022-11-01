@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
   if (Read == NULL) {
     return -1;
   }
-  circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL);
+  circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
   if (memcmp(Read, printbuf, len)) {
     printf("Doesn't match\r\n");
   }
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
     if (Read == NULL) {
       return -1;
     }
-    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL);
+    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
     if (memcmp(Read, printbuf, len)) {
       printf("Line %i doesn't match, test failed\r\n", i);
       free(Read);
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
       return -1;
     }
     circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR * 10, 10,
-                      "Find something");
+                      "Find something", 0);
 
     if (memcmp(Read, "Find something line", 19)) {
       printf("Line %i doesn't match, test failed\r\n", i);

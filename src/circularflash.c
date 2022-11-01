@@ -198,7 +198,8 @@ badexit:
 }
 
 uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
-                           uint32_t lines, char *filter) {
+                           uint32_t lines, char *filter,
+                           uint32_t estLineLength) {
   uint32_t ret = 0;
   uint32_t remaining;
   int32_t space, seek, i;
@@ -206,13 +207,16 @@ uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
   uint32_t lastStart = 0;
   CIRCULAR_LOG_ASSERT(log != NULL);
   CIRCULAR_LOG_ASSERT(buff != NULL);
-  if (buffSize < LINE_ESTIMATE_FACTOR) {
+  if (estLineLength == 0) {
+    estLineLength = LINE_ESTIMATE_FACTOR;
+  }
+  if (buffSize < estLineLength) {
     return 0;
   }
   FLASH_MUTEX_ENTER(log->osMutex);
   space = calculateLogSpace(log);
   FLASH_MUTEX_EXIT(log->osMutex);
-  searchLen = lines * LINE_ESTIMATE_FACTOR;
+  searchLen = lines * estLineLength;
   if (searchLen > buffSize - 1) {
     searchLen = buffSize - 1;
   }

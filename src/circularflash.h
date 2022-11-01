@@ -51,10 +51,10 @@ uint32_t circularLogInit(circ_log_t *log);
 uint32_t circularClearLog(circ_log_t *log);
 uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len);
 uint32_t circularReadLogPartial(circ_log_t *log, uint8_t *buff,
-                               uint32_t seek, uint32_t desiredlen,
-                               uint32_t *remaining);
+                               uint32_t seek, uint32_t desiredlen, uint32_t *remaining);
 
 uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
-                           uint32_t lines, char *filter);
+                           uint32_t lines, char *filter,
+                           uint32_t estLineLength);
 
 #endif
