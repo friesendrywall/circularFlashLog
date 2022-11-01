@@ -102,6 +102,9 @@ int main(int argc, char *argv[]) {
   uint32_t i;
   uint8_t wBuff[FLASH_WRITE_SIZE * 2];
   circ_log_t log = {.name = "LOGS",
+                    .read = circFlashRead,
+                    .write = circFlashWrite,
+                    .erase = circFlashErase,
                     .baseAddress = FLASH_LOGS_ADDRESS,
                     .logsLength = FLASH_LOGS_LENGTH,
                     .wBuff = wBuff,

@@ -40,6 +40,9 @@ typedef struct {
   int32_t LogFlashTailPtr;
   int32_t LogFlashHeadPtr;
   uint8_t circLogInit;
+  uint32_t (*read)(uint32_t FlashAddress, uint8_t *buff, uint32_t len);
+  uint32_t (*write)(uint32_t FlashAddress, uint8_t *buff, uint32_t len);
+  uint32_t (*erase)(uint32_t FlashAddress, uint32_t len);
 } circ_log_t;
 
 enum { CIRC_LOG_ERR_NONE, CIRC_LOG_ERR_IO, CIRC_LOG_ERR_API };
