@@ -372,6 +372,7 @@ uint32_t circularLogInit(circ_log_t *log) {
   CIRCULAR_LOG_ASSERT(log->read);
   CIRCULAR_LOG_ASSERT(log->write);
   CIRCULAR_LOG_ASSERT(log->erase);
+  FLASH_MUTEX_ENTER(log->osMutex);
   log->LogFlashTailPtr = -1;
   log->LogFlashHeadPtr = -1;
   if (log->wBuffLen < FLASH_MIN_BUFF) {
@@ -471,18 +472,14 @@ uint32_t circularLogInit(circ_log_t *log) {
     }
   }
 goodexit:
-  FLASH_DEBUG("FLASH: (%s) Head is at 0x%X\r\n", log->name,
-              log->LogFlashHeadPtr);
-  FLASH_DEBUG("FLASH: (%s) Tail is at 0x%X\r\n", log->name,
-              log->LogFlashTailPtr);
-  FLASH_DEBUG("FLASH: (%s) Erased --  0x%X\r\n", log->name,
-              calculateErasedSpace(log));
-  FLASH_DEBUG("FLASH: (%s) Logs ----  0x%X\r\n", log->name,
-              calculateLogSpace(log));
+  FLASH_DEBUG("FLASH: (%s) 0x%X .. 0x%X .. 0x%X\r\n", log->name, log->LogFlashTailPtr,
+      log->LogFlashHeadPtr, calculateErasedSpace(log));
   log->circLogInit = 1;
+  FLASH_MUTEX_EXIT(log->osMutex);
   return CIRC_LOG_ERR_NONE;
 
 badexit:
+  FLASH_MUTEX_EXIT(log->osMutex);
   FLASH_DEBUG("FLASH: (%s) Device error\r\n", log->name);
   return CIRC_LOG_ERR_IO;
 }
