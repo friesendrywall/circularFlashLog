@@ -31,7 +31,7 @@
 #define FLASH_SECTORS(logLength) (logLength / FLASH_SECTOR_SIZE)
 
 typedef struct {
-  char *name;
+  const char *name;
   uint32_t baseAddress;
   uint32_t logsLength;
   uint8_t * wBuff;
