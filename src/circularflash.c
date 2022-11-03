@@ -393,12 +393,12 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
           memcpy(&((uint8_t *)buff)[totalRet], lineStart, len);
           totalRet += len;
           lines--;
-          if (lines == 0) {
-            break;
-          }
         }
         lineEnd = i;
         file->seekPos -= len;
+        if (lines == 0) {
+          break;
+        }
       }
     }
     if (lineEnd == ret - 1) {
