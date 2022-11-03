@@ -244,6 +244,44 @@ static const char *test_circLogFileReverse(void) {
   return NULL;
 }
 
+static const char *test_circLogSearchHang(void) {
+  circular_FILE cf;
+  uint32_t i;
+  char printbuf[1024];
+  uint8_t Read[1024];
+  uint32_t len;
+
+  mu_assert("error, log file open err",
+            circularFileOpen(&log, CIRC_FLAGS_NEWEST, &cf) ==
+                CIRC_LOG_ERR_NONE);
+
+  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_REVERSE, 1000,
+                         "Bla-Bla");
+  mu_assert("error, len != 0", len == 0);
+  mu_assert("error, log file open err",
+            circularFileOpen(&log, CIRC_FLAGS_OLDEST, &cf) ==
+                CIRC_LOG_ERR_NONE);
+
+  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_REVERSE, 1000,
+                         "Bla-Bla");
+  mu_assert("error, len != 0", len == 0);
+  mu_assert("error, log file open err",
+            circularFileOpen(&log, CIRC_FLAGS_NEWEST, &cf) ==
+                CIRC_LOG_ERR_NONE);
+
+  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_FORWARD, 1000,
+                         "Bla-Bla");
+  mu_assert("error, len != 0", len == 0);
+  mu_assert("error, log file open err",
+            circularFileOpen(&log, CIRC_FLAGS_OLDEST, &cf) ==
+                CIRC_LOG_ERR_NONE);
+
+  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_FORWARD, 1000,
+                         "Bla-Bla");
+  mu_assert("error, len != 0", len == 0);
+  return NULL;
+}
+
 static const char *all_tests() {
   mu_run_test(test_circLogInit);
   mu_run_test(test_newLogTest);
@@ -251,6 +289,7 @@ static const char *all_tests() {
   mu_run_test(test_circLogShortMixed);
   mu_run_test(test_circLogFileForward);
   mu_run_test(test_circLogFileReverse);
+  mu_run_test(test_circLogSearchHang);
   return NULL;
 }
 
