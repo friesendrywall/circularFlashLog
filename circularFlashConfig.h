@@ -5,8 +5,10 @@
 
 #define USE_STATIC_ALLOCATION
 
-#define FLASH_MUTEX_ENTER(x)
-#define FLASH_MUTEX_EXIT(x)
+extern int mutexCount;
+
+#define FLASH_MUTEX_ENTER(x) mutexCount++
+#define FLASH_MUTEX_EXIT(x) mutexCount--
 
 #define FLASH_DEBUG printf
 #define LINE_ESTIMATE_FACTOR 64

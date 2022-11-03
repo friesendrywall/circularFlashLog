@@ -29,6 +29,7 @@
 #define FLASH_ERASED (0xFF)
 #define FLASH_MIN_BUFF 0x100
 #define FLASH_SECTORS(logLength) (logLength / FLASH_SECTOR_SIZE)
+#define LINES_READ_ALL (-1)
 
 typedef struct {
   const char *name;
@@ -45,7 +46,29 @@ typedef struct {
   uint32_t (*erase)(uint32_t FlashAddress, uint32_t len);
 } circ_log_t;
 
-enum { CIRC_LOG_ERR_NONE, CIRC_LOG_ERR_IO, CIRC_LOG_ERR_API };
+enum { 
+    CIRC_LOG_ERR_NONE, 
+    CIRC_LOG_ERR_IO, 
+    CIRC_LOG_ERR_API,
+    CIRC_LOG_ERR_INIT
+};
+
+typedef enum { 
+    CIRC_FLAGS_OLDEST, 
+    CIRC_FLAGS_NEWEST 
+} CIRC_FLAGS;
+
+typedef enum {
+    CIRC_DIR_FORWARD,
+    CIRC_DIR_REVERSE
+} CIRC_DIR;
+
+typedef struct {
+  uint32_t seekPos;
+  uint32_t headPtr;
+  uint32_t tailPtr;
+  CIRC_FLAGS flags;
+} circular_FILE;
 
 uint32_t circularLogInit(circ_log_t *log);
 uint32_t circularClearLog(circ_log_t *log);
@@ -56,5 +79,12 @@ uint32_t circularReadLogPartial(circ_log_t *log, uint8_t *buff,
 uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
                            uint32_t lines, char *filter,
                            uint32_t estLineLength);
+
+uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
+                          circular_FILE *file);
+
+uint32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
+                          uint32_t buffLen, CIRC_DIR dir, int32_t lines,
+                          char *filter);
 
 #endif

@@ -26,14 +26,19 @@
 * Test framework
 */
 // #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "minunit.h"
 
 #include "circularFlashConfig.h"
 #include "src/circularflash.h"
 #define FlashLogName "flashlog.bin"
+
+int tests_run = 0;
+int mutexCount = 0;
 
 unsigned char *FakeFlash;
 #define FLASH_LOGS_ADDRESS 0x200000
@@ -86,6 +91,16 @@ uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len) {
   return len;
 }
 
+uint8_t wBuff[FLASH_WRITE_SIZE * 2];
+circ_log_t log = {.name = "LOGS",
+                  .read = circFlashRead,
+                  .write = circFlashWrite,
+                  .erase = circFlashErase,
+                  .baseAddress = FLASH_LOGS_ADDRESS,
+                  .logsLength = FLASH_LOGS_LENGTH,
+                  .wBuff = wBuff,
+                  .wBuffLen = sizeof(wBuff)};
+
 void assertHandler(char *file, int line) {
   printf("CIRCULAR_LOG_ASSERT(%s:%i\r\n", file, line);
   int a = 0;
@@ -98,17 +113,149 @@ void assertHandler(char *file, int line) {
 #endif
 }
 
+static const char *test_circLogInit(void) {
+  mu_assert("error, CIRC_LOG_ERR_NONE",
+            circularLogInit(&log) == CIRC_LOG_ERR_NONE);
+  mu_assert("error, mutex count", mutexCount == 0);
+  return NULL;
+}
+
+static const char *test_newLogTest(void) {
+  char printbuf[1024];
+  uint8_t Read[LINE_ESTIMATE_FACTOR];
+  time_t t = time(NULL);
+  uint32_t len;
+  len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
+  circularWriteLog(&log, (unsigned char *)printbuf, len);
+  circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
+  mu_assert("error, Doesn't match", memcmp(Read, printbuf, len) == 0);
+  mu_assert("error, mutex count", mutexCount == 0);
+  return NULL;
+}
+
+static const char *test_circLogWrap(void) {
+  time_t t = time(NULL);
+  uint32_t i;
+  uint32_t len;
+  uint8_t Read[LINE_ESTIMATE_FACTOR];
+  char printbuf[1024];
+  len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
+  circularWriteLog(&log, (unsigned char *)printbuf, len);
+  mu_assert("error, malloc", Read != NULL);
+  circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
+  mu_assert("error, doesn't match", memcmp(Read, printbuf, len) == 0);
+  for (i = 0; i < 100000; i++) {
+    len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
+                  rand(), rand());
+    circularWriteLog(&log, (uint8_t *)printbuf, len);
+    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
+    if (memcmp(Read, printbuf, len)) {
+      sprintf(printbuf, "error, Line %i doesn't match, test failed", i);
+      mu_assert(printbuf, 0);
+    }
+  }
+  mu_assert("error, mutex count", mutexCount == 0);
+  return NULL;
+}
+
+static const char *test_circLogShortMixed(void) {
+  uint32_t i;
+  uint32_t len;
+  uint8_t Read[LINE_ESTIMATE_FACTOR * 10];
+  char printbuf[1024];
+  for (i = 0; i < 10000; i++) {
+    len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
+                  rand(), rand());
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
+    len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
+                  rand(), rand());
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
+    len = sprintf(printbuf, "Find something line %i unique %i %i\r\n", i,
+                  rand(), rand());
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
+    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR * 10, 10,
+                      "Find something", 0);
+
+    if (memcmp(Read, "Find something line", 19)) {
+      sprintf(printbuf, "error, Line %i doesn't match, test failed", i);
+      mu_assert(printbuf, 0);
+      break;
+    } 
+  }
+  mu_assert("error, mutex count", mutexCount == 0);
+  return NULL;
+}
+
+static const char *test_circLogFileForward(void) {
+  circular_FILE cf;
+  uint32_t i;
+  char printbuf[1024];
+  uint8_t Read[1024];
+  uint32_t len;
+  for (i = 0; i < 1000; i++) {
+    if (i % 100 == 0) {
+      len = sprintf(printbuf, "Unique[%03i] test\r\n", i);
+    } else {
+      len = sprintf(printbuf, "Forward test line %i to the log rand %i %i\r\n", i,
+                    rand(), rand());
+    }
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
+  }
+
+
+  mu_assert("error, log file open err", circularFileOpen(&log, CIRC_FLAGS_OLDEST, &cf) ==
+                    CIRC_LOG_ERR_NONE);
+
+  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_FORWARD, 1000,
+                         "Unique");
+  mu_assert("error, Incorrect length",len == 18 * 10);
+  mu_assert("error, Incorrect value", memcmp(Read, "Unique[000] test\r\n", 18) == 0);
+  mu_assert("error, mutex count", mutexCount == 0);
+  return NULL;
+}
+
+static const char *test_circLogFileReverse(void) {
+  circular_FILE cf;
+  uint32_t i;
+  char printbuf[1024];
+  uint8_t Read[1024];
+  uint32_t len;
+  for (i = 0; i < 1000; i++) {
+    if (i % 100 == 0) {
+      len = sprintf(printbuf, "Unique[%03i] test\r\n", i);
+    } else {
+      len = sprintf(printbuf, "Reverse test line %i to the log rand %i %i\r\n",
+                    i, rand(), rand());
+    }
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
+  }
+
+  mu_assert("error, log file open err",
+            circularFileOpen(&log, CIRC_FLAGS_NEWEST, &cf) ==
+                CIRC_LOG_ERR_NONE);
+
+  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_REVERSE, 1000,
+                         "Unique");
+  mu_assert("error, Incorrect First value",
+            memcmp(Read, "Unique[900] test\r\n", 18) == 0);
+  mu_assert("error, Incorrect Second value",
+            memcmp(&Read[18], "Unique[800] test\r\n", 18) == 0);
+  mu_assert("error, mutex count", mutexCount == 0);
+  return NULL;
+}
+
+static const char *all_tests() {
+  mu_run_test(test_circLogInit);
+  mu_run_test(test_newLogTest);
+  mu_run_test(test_circLogWrap);
+  mu_run_test(test_circLogShortMixed);
+  mu_run_test(test_circLogFileForward);
+  mu_run_test(test_circLogFileReverse);
+  return NULL;
+}
+
 int main(int argc, char *argv[]) {
   uint32_t i;
-  uint8_t wBuff[FLASH_WRITE_SIZE * 2];
-  circ_log_t log = {.name = "LOGS",
-                    .read = circFlashRead,
-                    .write = circFlashWrite,
-                    .erase = circFlashErase,
-                    .baseAddress = FLASH_LOGS_ADDRESS,
-                    .logsLength = FLASH_LOGS_LENGTH,
-                    .wBuff = wBuff,
-                    .wBuffLen = sizeof(wBuff)};
 
   FakeFlash = (unsigned char *)malloc(FLASH_LOGS_LENGTH);
   if (FakeFlash == NULL) {
@@ -123,77 +270,14 @@ int main(int argc, char *argv[]) {
     memset(FakeFlash, FLASH_ERASED, FLASH_LOGS_LENGTH);
   }
 
-  if (circularLogInit(&log) != CIRC_LOG_ERR_NONE) {
-    printf("Init error\r\n");
-    return -1;
-  };
-  
-  time_t t = time(NULL);
-
-  uint32_t len;
-
-  char *printbuf = (char *)malloc(1024);
-  if (printbuf == NULL) {
-    return -1;
+  const char *result = all_tests();
+  if (result != NULL) {
+    printf("%s\n", result);
+  } else {
+    printf("ALL TESTS PASSED\n");
   }
-  len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
-  circularWriteLog(&log, (unsigned char *)printbuf, len);
-  Read = malloc(LINE_ESTIMATE_FACTOR);
-  if (Read == NULL) {
-    return -1;
-  }
-  circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
-  if (memcmp(Read, printbuf, len)) {
-    printf("Doesn't match\r\n");
-  }
-  free(Read);
-  for (i = 0; i < 100000; i++) {
-    len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
-                  rand(), rand());
-    circularWriteLog(&log, (unsigned char *)printbuf, len);
-    Read = malloc(LINE_ESTIMATE_FACTOR);
-    if (Read == NULL) {
-      return -1;
-    }
-    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
-    if (memcmp(Read, printbuf, len)) {
-      printf("Line %i doesn't match, test failed\r\n", i);
-      free(Read);
-      break;
-    } else {
-      printf("\rLine %i passed:", i);
-    }
-    free(Read);
-  }
-
-  for (i = 0; i < 10000; i++) {
-    len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
-                  rand(), rand());
-    circularWriteLog(&log, (unsigned char *)printbuf, len);
-    len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
-                  rand(), rand());
-    circularWriteLog(&log, (unsigned char *)printbuf, len);
-    len = sprintf(printbuf, "Find something line %i unique %i %i\r\n", i,
-                  rand(), rand());
-    circularWriteLog(&log, (unsigned char *)printbuf, len);
-
-    Read = malloc(LINE_ESTIMATE_FACTOR * 10);
-    if (Read == NULL) {
-      return -1;
-    }
-    circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR * 10, 10,
-                      "Find something", 0);
-
-    if (memcmp(Read, "Find something line", 19)) {
-      printf("Line %i doesn't match, test failed\r\n", i);
-      free(Read);
-      break;
-    } else {
-      printf("\rLine %i passed:", i);
-    }
-    free(Read);
-  }
-
+  printf("Tests run: %d\n", tests_run);
+  /* persist memory here */
   FF = fopen(FlashLogName, "wb");
   if (FF != NULL) {
     fwrite(FakeFlash, 1, FLASH_LOGS_LENGTH, FF);
@@ -201,6 +285,5 @@ int main(int argc, char *argv[]) {
   } else {
     printf("File IO error\r\n");
   }
-
-  return 0;
+  return (result != NULL);
 }
