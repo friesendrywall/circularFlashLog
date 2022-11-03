@@ -262,7 +262,7 @@ uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
         break;
       }
     }
-    if (file->seekPos == space) {
+    if (file->seekPos == (uint32_t)space) {
       file->seekPos = 0;
     }
     break;
@@ -275,8 +275,6 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
                             uint32_t buffLen, int32_t lines, char * filter) {
   int32_t ret = 0;
   int32_t totalRet = 0;
-  int32_t buffPos = 0;
-  uint32_t lineLen = 0;
   uint32_t filtered = 0;
   int32_t space;
   int32_t i;
@@ -284,7 +282,7 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
   uint32_t filterLen = filter == NULL ? 0 : strlen(filter);
   space = calculateSpace(log, file->tailPtr, file->headPtr);
   /* Set seek to position */
-  if (space == file->seekPos) {
+  if ((uint32_t)space == file->seekPos) {
     return 0;
   }
 
@@ -350,10 +348,8 @@ shortExit:
 
 static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
                          uint32_t buffLen, int32_t lines, char *filter) {
-  int32_t ret = 0;
+  uint32_t ret = 0;
   int32_t totalRet = 0;
-  int32_t buffPos = 0;
-  uint32_t lineLen = 0;
   uint32_t filtered = 0;
   uint32_t searchComplete = 0;
   int32_t i, space, seekPos, seekLen;
@@ -364,7 +360,6 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
   /* Read reverse by line count, always staying line aligned */
   FLASH_MUTEX_ENTER(log->osMutex);
   while (lines && file->seekPos > 0 && !searchComplete) {
-    uint32_t exitSearch = 0;
     if (log->wBuffLen > file->seekPos) {
       searchComplete = 1;
       seekPos = 0;
@@ -383,7 +378,7 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
       if (log->wBuff[i] == '\n') {
         // Manage new line
         uint32_t len = lineEnd - i;
-        char *lineStart = &log->wBuff[i + 1];
+        char *lineStart = (char *)&log->wBuff[i + 1];
         if (filter != NULL) {
           if (memcmp(lineStart, filter, filterLen) == 0) {
             filtered = 0;
