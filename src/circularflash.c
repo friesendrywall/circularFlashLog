@@ -207,7 +207,6 @@ uint32_t circularReadLogPartial(circ_log_t *log, uint8_t *buff,
   CIRCULAR_LOG_ASSERT(log != NULL);
   CIRCULAR_LOG_ASSERT(buff != NULL);
   uint32_t ret = 0;
-  uint32_t secondlen;
   if (!log->circLogInit) {
     return 0;
   }
@@ -281,7 +280,7 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
   uint32_t filtered = 0;
   int32_t space;
   int32_t i;
-  uint32_t remaining, seek;
+  uint32_t remaining;
   uint32_t filterLen = filter == NULL ? 0 : strlen(filter);
   space = calculateSpace(log, file->tailPtr, file->headPtr);
   /* Set seek to position */
@@ -333,7 +332,7 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
 
           line = &log->wBuff[i + 1];
           file->seekPos += len;
-          if (file->seekPos >= space) {
+          if (file->seekPos >= (uint32_t)space) {
             goto shortExit;
           }
         }
@@ -357,22 +356,22 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
   uint32_t lineLen = 0;
   uint32_t filtered = 0;
   uint32_t searchComplete = 0;
-  int32_t i, space, seekPos;
-  uint32_t remaining, seek;
+  int32_t i, space, seekPos, seekLen;
+  uint32_t remaining;
   uint32_t filterLen = filter == NULL ? 0 : strlen(filter);
   space = calculateSpace(log, file->tailPtr, file->headPtr);
 
   /* Read reverse by line count, always staying line aligned */
   FLASH_MUTEX_ENTER(log->osMutex);
   while (lines && file->seekPos > 0 && !searchComplete) {
-    int32_t seekLen = log->wBuffLen;
     uint32_t exitSearch = 0;
-    if (seekLen > file->seekPos) {
+    if (log->wBuffLen > file->seekPos) {
       searchComplete = 1;
       seekPos = 0;
       seekLen = file->seekPos;
     } else {
-      seekPos = file->seekPos - seekLen;
+      seekPos = file->seekPos - log->wBuffLen;
+      seekLen = log->wBuffLen;
     }
     ret = circularReadSection(log, log->wBuff, file->tailPtr, file->headPtr,
                               seekPos, space, seekLen, &remaining);
