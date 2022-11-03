@@ -40,7 +40,8 @@ typedef struct {
   void *osMutex;
   int32_t LogFlashTailPtr;
   int32_t LogFlashHeadPtr;
-  uint8_t circLogInit;
+  uint8_t circLogInit : 1;
+  uint8_t emptyFlag : 1;
   uint32_t (*read)(uint32_t FlashAddress, uint8_t *buff, uint32_t len);
   uint32_t (*write)(uint32_t FlashAddress, uint8_t *buff, uint32_t len);
   uint32_t (*erase)(uint32_t FlashAddress, uint32_t len);

@@ -606,6 +606,7 @@ uint32_t circularLogInit(circ_log_t *log) {
   FLASH_MUTEX_ENTER(log->osMutex);
   log->LogFlashTailPtr = -1;
   log->LogFlashHeadPtr = -1;
+  log->emptyFlag = 0;
   if (log->wBuffLen < FLASH_MIN_BUFF) {
     FLASH_DEBUG("FLASH: (%s) Buffer size %u < %i\r\n", log->name, log->wBuffLen,
                 FLASH_MIN_BUFF);
@@ -636,6 +637,7 @@ uint32_t circularLogInit(circ_log_t *log) {
       FLASH_DEBUG("FLASH: (%s) Device is empty\r\n", log->name);
       log->LogFlashTailPtr = 0;
       log->LogFlashHeadPtr = 0;
+      log->emptyFlag = 1;
       goto goodexit;
     }
     // Now search for head
