@@ -26,6 +26,7 @@
 #define __CIRCULARFLASH_H
 
 #include <stdint.h>
+#include "circularFlashConfig.h"
 #define FLASH_ERASED (0xFF)
 #define FLASH_MIN_BUFF 0x100
 #define FLASH_SECTORS(logLength) (logLength / FLASH_SECTOR_SIZE)

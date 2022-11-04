@@ -122,7 +122,7 @@ static const char *test_circLogInit(void) {
 
 static const char *test_newLogTest(void) {
   char printbuf[1024];
-  uint8_t Read[LINE_ESTIMATE_FACTOR];
+  uint8_t Read[LINE_ESTIMATE_FACTOR] = {0};
   time_t t = time(NULL);
   uint32_t len;
   len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
@@ -137,11 +137,10 @@ static const char *test_circLogWrap(void) {
   time_t t = time(NULL);
   uint32_t i;
   uint32_t len;
-  uint8_t Read[LINE_ESTIMATE_FACTOR];
-  char printbuf[1024];
+  uint8_t Read[LINE_ESTIMATE_FACTOR] = {0};
+  static char printbuf[1024];
   len = sprintf(printbuf, "New log test at %i UTC\r\n", (int)t);
   circularWriteLog(&log, (unsigned char *)printbuf, len);
-  mu_assert("error, malloc", Read != NULL);
   circularReadLines(&log, Read, LINE_ESTIMATE_FACTOR, 1, NULL, 0);
   mu_assert("error, doesn't match", memcmp(Read, printbuf, len) == 0);
   for (i = 0; i < 100000; i++) {
@@ -161,8 +160,8 @@ static const char *test_circLogWrap(void) {
 static const char *test_circLogShortMixed(void) {
   uint32_t i;
   uint32_t len;
-  uint8_t Read[LINE_ESTIMATE_FACTOR * 10];
-  char printbuf[1024];
+  uint8_t Read[LINE_ESTIMATE_FACTOR * 10] = {0};
+  static char printbuf[1024];
   for (i = 0; i < 10000; i++) {
     len = sprintf(printbuf, "Testing line %i to the log rand %i %i\r\n", i,
                   rand(), rand());
@@ -245,10 +244,8 @@ static const char *test_circLogFileReverse(void) {
 }
 
 static const char *test_circLogSearchHang(void) {
-  circular_FILE cf;
-  uint32_t i;
-  char printbuf[1024];
-  uint8_t Read[1024];
+  circular_FILE cf = {0};
+  uint8_t Read[1024] = {0};
   uint32_t len;
 
   mu_assert("error, log file open err",
@@ -294,13 +291,12 @@ static const char *all_tests() {
 }
 
 int main(int argc, char *argv[]) {
-  uint32_t i;
 
   FakeFlash = (unsigned char *)malloc(FLASH_LOGS_LENGTH);
   if (FakeFlash == NULL) {
     return -1;
   }
-  unsigned char *Read;
+
   FILE *FF = fopen(FlashLogName, "rb");
   if (FF != NULL) {
     fread(FakeFlash, 1, FLASH_LOGS_LENGTH, FF);

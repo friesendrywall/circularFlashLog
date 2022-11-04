@@ -3,8 +3,6 @@
 #define FLASH_SECTOR_SIZE 0x1000
 #define FLASH_WRITE_SIZE 0x100
 
-#define USE_STATIC_ALLOCATION
-
 extern int mutexCount;
 
 #define FLASH_MUTEX_ENTER(x) mutexCount++
