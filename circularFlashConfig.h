@@ -12,7 +12,7 @@ extern int mutexCount;
 
 #define FLASH_DEBUG printf
 #define LINE_ESTIMATE_FACTOR 64
-// #define LOG_CACHE_INVALIDATE(addr, len)
+#define SEARCH_BUFF_SIZE 1024
 
 void assertHandler(char *file, int line);
 #define CIRCULAR_LOG_ASSERT(expr)                                              \

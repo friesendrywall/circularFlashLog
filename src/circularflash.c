@@ -29,6 +29,8 @@
 #include "circularflash.h"
 #include <stdlib.h>
 
+#define FILE_MAGIC_MARKER 0xA1B2C3D4
+
 static int32_t calculateErasedSpace(circ_log_t * log) {
   if (log->LogFlashTailPtr == 0 && log->LogFlashHeadPtr == 0) {
     return log->logsLength; // Never written, new flash
@@ -222,13 +224,6 @@ uint32_t circularReadLogPartial(circ_log_t *log, uint8_t *buff,
   return ret;
 }
 
-typedef struct {
-  uint32_t headPtr;
-  uint32_t seekPoint;
-  uint32_t lineCount;
-  uint32_t initialized;
-} circular_reader_t;
-
 uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
                           circular_FILE *file) {
   CIRCULAR_LOG_ASSERT(log != NULL);
@@ -247,6 +242,7 @@ uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
     file->tailPtr += FLASH_SECTOR_SIZE;
   }
   int32_t space = calculateSpace(log, file->tailPtr, file->headPtr);
+  FLASH_MUTEX_EXIT(log->osMutex);
   switch (flags) {
   default:
   case CIRC_FLAGS_NEWEST:
@@ -254,10 +250,10 @@ uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
     break;
   case CIRC_FLAGS_OLDEST:
     /* Align with first line */
-    ret = circularReadSection(log, log->wBuff, file->tailPtr, file->headPtr, 0,
-                              space, log->wBuffLen, &remaining);
+    ret = circularReadSection(log, file->wBuff, file->tailPtr, file->headPtr, 0,
+                              space, SEARCH_BUFF_SIZE, &remaining);
     for (i = 0; i < ret; i++) {
-      if (log->wBuff[i] == '\n') {
+      if (file->wBuff[i] == '\n') {
         file->seekPos = i + 1;
         break;
       }
@@ -267,7 +263,8 @@ uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
     }
     break;
   }
-  FLASH_MUTEX_EXIT(log->osMutex);
+  
+  file->valid = FILE_MAGIC_MARKER;
   return CIRC_LOG_ERR_NONE;
 }
 
@@ -287,28 +284,24 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
   }
 
   if (LINES_READ_ALL == lines) {
-    FLASH_MUTEX_ENTER(log->osMutex);
-    ret =
-        circularReadSection(log, (uint8_t *)buff, file->tailPtr, file->headPtr,
-                            file->seekPos, space, buffLen, &remaining);
-    FLASH_MUTEX_EXIT(log->osMutex);
+    ret = circularReadSection(log, (uint8_t *)buff, file->tailPtr, file->headPtr,
+                              file->seekPos, space, buffLen, &remaining);
     file->seekPos += ret;
     return ret;
   } else {
     /* Read forward by line count, always staying line aligned */
-    FLASH_MUTEX_ENTER(log->osMutex);
     while (lines) {
-      ret =
-          circularReadSection(log, log->wBuff, file->tailPtr, file->headPtr,
-                              file->seekPos, space, log->wBuffLen, &remaining);
+      ret = circularReadSection(log, file->wBuff, file->tailPtr, file->headPtr,
+                                file->seekPos, space, SEARCH_BUFF_SIZE,
+                                &remaining);
       if (ret == 0) {
         goto shortExit;
       }
-      uint8_t *line = log->wBuff;
+      uint8_t *line = file->wBuff;
       for (i = 0; i < ret; i++) {
-        if (log->wBuff[i] == '\n') {
+        if (file->wBuff[i] == '\n') {
           // Manage new line
-          uint32_t len = (&log->wBuff[i] - line + 1);
+          uint32_t len = (&file->wBuff[i] - line + 1);
           if (filter != NULL) {
             if (memcmp((char *)line, filter, filterLen) == 0) {
               filtered = 0;
@@ -328,21 +321,20 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
             }
           }
 
-          line = &log->wBuff[i + 1];
+          line = &file->wBuff[i + 1];
           file->seekPos += len;
           if (file->seekPos >= (uint32_t)space) {
             goto shortExit;
           }
         }
       }
-      if (line == log->wBuff) {
+      if (line == file->wBuff) {
         /* Didn't find even one line so short circuit */
         goto shortExit;
       }
     }
   }
 shortExit:
-  FLASH_MUTEX_EXIT(log->osMutex);
   return totalRet;
 }
 
@@ -358,27 +350,26 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
   space = calculateSpace(log, file->tailPtr, file->headPtr);
 
   /* Read reverse by line count, always staying line aligned */
-  FLASH_MUTEX_ENTER(log->osMutex);
   while (lines && file->seekPos > 0 && !searchComplete) {
-    if (log->wBuffLen > file->seekPos) {
+    if (SEARCH_BUFF_SIZE > file->seekPos) {
       searchComplete = 1;
       seekPos = 0;
       seekLen = file->seekPos;
     } else {
-      seekPos = file->seekPos - log->wBuffLen;
-      seekLen = log->wBuffLen;
+      seekPos = file->seekPos - SEARCH_BUFF_SIZE;
+      seekLen = SEARCH_BUFF_SIZE;
     }
-    ret = circularReadSection(log, log->wBuff, file->tailPtr, file->headPtr,
+    ret = circularReadSection(log, file->wBuff, file->tailPtr, file->headPtr,
                               seekPos, space, seekLen, &remaining);
     if (ret == 0) {
       goto shortExit;
     }
     uint32_t lineEnd = ret - 1;
     for (i = ret - 2; i >= 0; i--) {
-      if (log->wBuff[i] == '\n') {
+      if (file->wBuff[i] == '\n') {
         // Manage new line
         uint32_t len = lineEnd - i;
-        char *lineStart = (char *)&log->wBuff[i + 1];
+        char *lineStart = (char *)&file->wBuff[i + 1];
         if (filter != NULL) {
           if (memcmp(lineStart, filter, filterLen) == 0) {
             filtered = 0;
@@ -407,13 +398,15 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
     }
   }
 shortExit:
-  FLASH_MUTEX_EXIT(log->osMutex);
   return totalRet;
 }
 
 uint32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
                           uint32_t buffLen, CIRC_DIR dir, int32_t lines,
                           char *filter) {
+  if (file->valid != FILE_MAGIC_MARKER) {
+    return CIRC_LOG_ERR_API;
+  }
   switch (dir) {
   case CIRC_DIR_FORWARD:
     return readForward(log, file, buff, buffLen, lines, filter);

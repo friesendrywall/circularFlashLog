@@ -68,7 +68,10 @@ typedef struct {
   uint32_t seekPos;
   uint32_t headPtr;
   uint32_t tailPtr;
+  uint32_t valid;
   CIRC_FLAGS flags;
+  /* Search buffer */
+  uint8_t wBuff[SEARCH_BUFF_SIZE];
 } circular_FILE;
 
 uint32_t circularLogInit(circ_log_t *log);
