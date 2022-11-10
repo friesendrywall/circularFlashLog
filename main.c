@@ -223,13 +223,13 @@ static const char *test_circLogFileReverse(void) {
     if (i % 100 == 0) {
       len = sprintf(printbuf, "Unique[%03i] test\r\n", i);
     } else {
-      len = sprintf(printbuf, "Reverse test line %i to the log rand %i %i\r\n",
+      len = sprintf(printbuf, "Reverse[%i] to the log rand %i %i\r\n",
                     i, rand(), rand());
     }
     circularWriteLog(&log, (unsigned char *)printbuf, len);
   }
 
-  mu_assert("error, log file open err",
+  mu_assert("error, log file open err #1",
             circularFileOpen(&log, CIRC_FLAGS_NEWEST, &cf) ==
                 CIRC_LOG_ERR_NONE);
 
@@ -240,6 +240,15 @@ static const char *test_circLogFileReverse(void) {
   mu_assert("error, Incorrect Second value",
             memcmp(&Read[18], "Unique[800] test\r\n", 18) == 0);
   mu_assert("error, mutex count", mutexCount == 0);
+  /* seek filter */
+  mu_assert("error, log file open err #2",
+            circularFileOpen(&log, CIRC_FLAGS_NEWEST, &cf) ==
+                CIRC_LOG_ERR_NONE);
+  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_REVERSE, 1,
+                         "seek8");
+  Read[len] = 0;
+  mu_assert("error, Incorrect Index[4] value",
+            memcmp(Read, "Reverse[991]", 12) == 0);
   return NULL;
 }
 

@@ -277,6 +277,11 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
   int32_t i;
   uint32_t remaining;
   uint32_t filterLen = filter == NULL ? 0 : strlen(filter);
+  uint32_t seekCount = 0;
+  if (filter != NULL && strlen(filter) > 4 && memcmp(filter, "seek", 4) == 0) {
+    seekCount = atoi(&filter[4]);
+    filter = NULL;
+  }
   space = calculateSpace(log, file->tailPtr, file->headPtr);
   /* Set seek to position */
   if ((uint32_t)space == file->seekPos) {
@@ -308,6 +313,11 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
             } else {
               filtered = 1;
             }
+          } else if (seekCount) {
+            seekCount--;
+            filtered = 1;
+          } else {
+            filtered = 0;
           }
           if (!filtered) {
             if (len + totalRet > buffLen) {
@@ -347,6 +357,11 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
   int32_t i, space, seekPos, seekLen;
   uint32_t remaining;
   uint32_t filterLen = filter == NULL ? 0 : strlen(filter);
+  uint32_t seekCount = 0;
+  if (filter != NULL && strlen(filter) > 4 && memcmp(filter, "seek", 4) == 0) {
+    seekCount = atoi(&filter[4]);
+    filter = NULL;
+  }
   space = calculateSpace(log, file->tailPtr, file->headPtr);
 
   /* Read reverse by line count, always staying line aligned */
@@ -376,6 +391,11 @@ static uint32_t readBack(circ_log_t *log, circular_FILE *file, void *buff,
           } else {
             filtered = 1;
           }
+        } else if (seekCount) {
+          seekCount--;
+          filtered = 1;
+        } else {
+          filtered = 0;
         }
         if (!filtered) {
           if (len + totalRet > buffLen) {
