@@ -32,6 +32,26 @@
 #define FLASH_SECTORS(logLength) (logLength / FLASH_SECTOR_SIZE)
 #define LINES_READ_ALL (-1)
 
+#ifndef FLASH_DEBUG
+#define FLASH_DEBUG(...)
+#endif
+
+#ifndef LINE_ESTIMATE_FACTOR
+#define LINE_ESTIMATE_FACTOR 64
+#endif
+
+#ifndef SEARCH_BUFF_SIZE
+#define SEARCH_BUFF_SIZE 1024
+#endif
+
+#ifndef FLASH_SECTOR_SIZE
+#define FLASH_SECTOR_SIZE 0x1000
+#endif
+
+#ifndef FLASH_WRITE_SIZE
+#define FLASH_WRITE_SIZE 0x100
+#endif
+
 typedef struct {
   const char *name;
   uint32_t baseAddress;
