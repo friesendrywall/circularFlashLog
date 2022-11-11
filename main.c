@@ -293,6 +293,44 @@ static const char *test_circLogFileTime(void) {
   return NULL;
 }
 
+static const char *test_newInitial(void) {
+  uint32_t i = 0;
+  uint32_t len;
+  uint8_t Read[1024] = {0};
+  static char printbuf[256];
+  char tbuf[512];
+  uint32_t stamp = 1668175200 + (i * 900);
+  circularClearLog(&log);
+  len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
+  mu_assert("err should be 0", len == 0);
+
+  len = sprintf(printbuf, "%010i Was Stamped[%05i] %i\r\n",
+                1668175200 + (i * 900), i, rand());
+  circularWriteLog(&log, (unsigned char *)printbuf, len);
+
+  stamp = 1668175200 + (i * 900);
+  readHitCount = 0;
+  parseDateHits = 0;
+  len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
+  sprintf(printbuf, "err @ stamp %i index %i", stamp, i);
+  sprintf(tbuf, "%010i", stamp);
+  mu_assert(printbuf, memcmp(tbuf, Read, 10) == 0);
+  i++; /* Next */
+  stamp = 1668175200 + (i * 900);
+  len = sprintf(printbuf, "%010i Was Stamped[%05i] %i\r\n",
+                1668175200 + (i * 900), i, rand());
+  circularWriteLog(&log, (unsigned char *)printbuf, len);
+
+  stamp = 1668175200 + (i * 900);
+  readHitCount = 0;
+  parseDateHits = 0;
+  len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
+  sprintf(printbuf, "err @ stamp %i index %i", stamp, i);
+  sprintf(tbuf, "%010i", stamp);
+  mu_assert(printbuf, memcmp(tbuf, Read, 10) == 0);
+  return NULL;
+}
+
 static const char *test_circLogSearchHang(void) {
   circular_FILE cf = {0};
   uint8_t Read[1024] = {0};
@@ -338,6 +376,7 @@ static const char *all_tests() {
   mu_run_test(test_circLogFileReverse);
   mu_run_test(test_circLogFileTime);
   mu_run_test(test_circLogSearchHang);
+  mu_run_test(test_newInitial);
   return NULL;
 }
 
