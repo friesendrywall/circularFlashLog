@@ -288,12 +288,20 @@ static const char *test_circLogFileTime(void) {
       dateTrack = parseDateHits;
     }
   }
+  /* Non existent time test */
+  uint32_t stamp = 1668175200 + (i * 900) + 5;
+  readHitCount = 0;
+  parseDateHits = 0;
+  len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
+  mu_assert("Err, non existent file found!", len == 0);
+  mu_assert("Err, Hit count too high", readHitCount <= 4608);
   printf("Search metrics @ test_circLogFileTime = IO(%i) Date(%i)\r\n",
          readTrack, dateTrack);
   return NULL;
 }
 
 static const char *test_newInitial(void) {
+    // TODO cleanup
   uint32_t i = 0;
   uint32_t len;
   uint8_t Read[1024] = {0};
@@ -304,30 +312,20 @@ static const char *test_newInitial(void) {
   len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
   mu_assert("err should be 0", len == 0);
 
-  len = sprintf(printbuf, "%010i Was Stamped[%05i] %i\r\n",
-                1668175200 + (i * 900), i, rand());
+  len = sprintf(printbuf, "%010i Was Stamped[%05i] %i\r\n", 
+      1668175200, i, rand());
   circularWriteLog(&log, (unsigned char *)printbuf, len);
 
-  stamp = 1668175200 + (i * 900);
-  readHitCount = 0;
-  parseDateHits = 0;
   len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
-  sprintf(printbuf, "err @ stamp %i index %i", stamp, i);
   sprintf(tbuf, "%010i", stamp);
-  mu_assert(printbuf, memcmp(tbuf, Read, 10) == 0);
-  i++; /* Next */
-  stamp = 1668175200 + (i * 900);
-  len = sprintf(printbuf, "%010i Was Stamped[%05i] %i\r\n",
-                1668175200 + (i * 900), i, rand());
+  mu_assert("Err at single write on empty", memcmp(tbuf, Read, 10) == 0);
+  /* 2x on empty */
+  stamp = 1668175200 + 900;
+  len = sprintf(printbuf, "%010i Was Stamped[%05i] %i\r\n", stamp, i, rand());
   circularWriteLog(&log, (unsigned char *)printbuf, len);
-
-  stamp = 1668175200 + (i * 900);
-  readHitCount = 0;
-  parseDateHits = 0;
   len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
-  sprintf(printbuf, "err @ stamp %i index %i", stamp, i);
   sprintf(tbuf, "%010i", stamp);
-  mu_assert(printbuf, memcmp(tbuf, Read, 10) == 0);
+  mu_assert("Err at double write on empty", memcmp(tbuf, Read, 10) == 0);
   return NULL;
 }
 
