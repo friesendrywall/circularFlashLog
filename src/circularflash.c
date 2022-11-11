@@ -78,7 +78,7 @@ static void findFirstLine(circ_log_t *log, circ_log_index_t *index,
     }
     for (j = 0; j < res - FLASH_MAX_DATE_LEN; j++) {
       if (log->wBuff[j] == '\n') {
-        index->time = log->parseTime(&log->wBuff[j + 1]);
+        index->time = log->parseTime((const char *)&log->wBuff[j + 1]);
         index->firstLine = j + 1;
         return;
       }
@@ -474,7 +474,7 @@ static uint32_t findLogAtSector(circ_log_t *log, void *buff, uint32_t buffLen,
     for (i = 0; i < ret; i++) {
       if (log->wBuff[i] == '\n') {
         uint32_t len = (&log->wBuff[i] - line + 1);
-        uint32_t logStamp = log->parseTime(line);
+        uint32_t logStamp = log->parseTime((const char *)line);
         if (logStamp == time) {
           len = len > buffLen ? buffLen : len;
           memcpy(buff, line, len);
@@ -743,7 +743,7 @@ uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len) {
   if (log->index && log->parseTime &&
       log->index[headSector].time == 0xFFFFFFFF) {
     log->index[headSector].firstLine = headStart % FLASH_SECTOR_SIZE;
-    log->index[headSector].time = log->parseTime(buf);
+    log->index[headSector].time = log->parseTime((const char *)buf);
   }
   FLASH_MUTEX_EXIT(log->osMutex);
   return len;
