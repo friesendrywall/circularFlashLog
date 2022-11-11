@@ -39,6 +39,8 @@
 
 int tests_run = 0;
 int mutexCount = 0;
+uint32_t readHitCount = 0;
+uint32_t parseDateHits = 0;
 
 unsigned char *FakeFlash;
 #define FLASH_LOGS_ADDRESS 0x200000
@@ -55,6 +57,7 @@ uint32_t circFlashRead(uint32_t FlashAddress, uint8_t *buff,
     printf("Address+len out of range 0x%X\r\n", FlashAddress);
     return 0;
   }
+  readHitCount += len;
   memcpy(buff, &FakeFlash[FlashAddress - FLASH_LOGS_ADDRESS], len);
   return len;
 }
@@ -92,6 +95,13 @@ uint32_t circFlashErase(uint32_t FlashAddress, uint32_t len) {
 }
 
 uint8_t wBuff[FLASH_WRITE_SIZE * 2];
+circ_log_index_t searchIndex[FLASH_LOGS_LENGTH / FLASH_SECTOR_SIZE];
+
+uint32_t parseTime(const char *line) {
+  parseDateHits++;
+  return strtoul(line, NULL, 0);
+}
+
 circ_log_t log = {.name = "LOGS",
                   .read = circFlashRead,
                   .write = circFlashWrite,
@@ -99,6 +109,8 @@ circ_log_t log = {.name = "LOGS",
                   .baseAddress = FLASH_LOGS_ADDRESS,
                   .logsLength = FLASH_LOGS_LENGTH,
                   .wBuff = wBuff,
+                  .index = searchIndex,
+                  .parseTime = parseTime,
                   .wBuffLen = sizeof(wBuff)};
 
 void assertHandler(char *file, int line) {
@@ -244,11 +256,40 @@ static const char *test_circLogFileReverse(void) {
   mu_assert("error, log file open err #2",
             circularFileOpen(&log, CIRC_FLAGS_NEWEST, &cf) ==
                 CIRC_LOG_ERR_NONE);
-  len = circularFileRead(&log, &cf, Read, sizeof(Read), CIRC_DIR_REVERSE, 1,
-                         "seek8");
-  Read[len] = 0;
-  mu_assert("error, Incorrect Index[4] value",
-            memcmp(Read, "Reverse[991]", 12) == 0);
+  return NULL;
+}
+
+static const char *test_circLogFileTime(void) {
+  uint32_t len;
+  int32_t i;
+  static uint32_t readTrack = 0;
+  static uint32_t dateTrack = 0;
+  static char printbuf[256];
+  char tbuf[512];
+  uint8_t Read[1024] = {0};
+  for (i = 0; i < 100000; i++) {
+    len = sprintf(printbuf, "%010i Was Stamped[%05i] %i\r\n",
+                  1668175200 + (i * 900), i, rand());
+    circularWriteLog(&log, (unsigned char *)printbuf, len);
+  }
+
+  for (i = 100000 - 1; i >= 50000; i--) {
+    uint32_t stamp = 1668175200 + (i * 900);
+    readHitCount = 0;
+    parseDateHits = 0;
+    len = indexedLogSearch(&log, Read, sizeof(Read), stamp);
+    sprintf(printbuf, "err @ stamp %i index %i", stamp, i);
+    sprintf(tbuf, "%010i", stamp);
+    mu_assert(printbuf, memcmp(tbuf, Read, 10) == 0);
+    if (readHitCount > readTrack) {
+      readTrack = readHitCount;
+    }
+    if (parseDateHits > dateTrack) {
+      dateTrack = parseDateHits;
+    }
+  }
+  printf("Search metrics @ test_circLogFileTime = IO(%i) Date(%i)\r\n",
+         readTrack, dateTrack);
   return NULL;
 }
 
@@ -295,6 +336,7 @@ static const char *all_tests() {
   mu_run_test(test_circLogShortMixed);
   mu_run_test(test_circLogFileForward);
   mu_run_test(test_circLogFileReverse);
+  mu_run_test(test_circLogFileTime);
   mu_run_test(test_circLogSearchHang);
   return NULL;
 }

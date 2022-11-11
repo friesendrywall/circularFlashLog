@@ -27,10 +27,20 @@
 
 #include <stdint.h>
 #include "circularFlashConfig.h"
+
+#define CIRCULAR_FLASH_VERSION "1.05"
+
 #define FLASH_ERASED (0xFF)
-#define FLASH_MIN_BUFF 0x100
 #define FLASH_SECTORS(logLength) (logLength / FLASH_SECTOR_SIZE)
 #define LINES_READ_ALL (-1)
+
+#ifndef FLASH_MAX_DATE_LEN
+#define FLASH_MAX_DATE_LEN 32
+#endif
+
+#if FLASH_MAX_DATE_LEN >= FLASH_WRITE_SIZE
+#error "FLASH_MAX_DATE_LEN too long"
+#endif
 
 #ifndef FLASH_DEBUG
 #define FLASH_DEBUG(...)
@@ -52,12 +62,21 @@
 #define FLASH_WRITE_SIZE 0x100
 #endif
 
+#define FLASH_MIN_BUFF (FLASH_WRITE_SIZE + FLASH_MAX_DATE_LEN)
+
+/* Optional index, must be sector count */
+typedef struct {
+  uint32_t time;
+  uint32_t firstLine;
+} circ_log_index_t;
+
 typedef struct {
   const char *name;
-  uint32_t baseAddress;
-  uint32_t logsLength;
+  const uint32_t baseAddress;
+  const uint32_t logsLength;
   uint8_t * wBuff;
-  uint32_t wBuffLen;
+  const uint32_t wBuffLen;
+  circ_log_index_t *index;
   void *osMutex;
   int32_t LogFlashTailPtr;
   int32_t LogFlashHeadPtr;
@@ -66,6 +85,7 @@ typedef struct {
   uint32_t (*read)(uint32_t FlashAddress, uint8_t *buff, uint32_t len);
   uint32_t (*write)(uint32_t FlashAddress, uint8_t *buff, uint32_t len);
   uint32_t (*erase)(uint32_t FlashAddress, uint32_t len);
+  uint32_t (*parseTime)(const char * line);
 } circ_log_t;
 
 enum { 
@@ -111,5 +131,8 @@ uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
 uint32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
                           uint32_t buffLen, CIRC_DIR dir, int32_t lines,
                           char *filter);
+
+uint32_t indexedLogSearch(circ_log_t *log, void *buff, uint32_t buffLen,
+                          uint32_t time);
 
 #endif
