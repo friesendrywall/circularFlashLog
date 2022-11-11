@@ -454,7 +454,7 @@ static uint32_t findLogAtSector(circ_log_t *log, void *buff, uint32_t buffLen,
   uint32_t seekPos;
   uint32_t seekAddr =
       (sector * FLASH_SECTOR_SIZE) + log->index[sector].firstLine;
-  if ((int32_t)seekAddr > log->LogFlashTailPtr) {
+  if ((int32_t)seekAddr >= log->LogFlashTailPtr) {
     seekPos = seekAddr - log->LogFlashTailPtr;
   } else { /* Wrap */
     seekPos = (log->logsLength - log->LogFlashTailPtr) + seekAddr;
