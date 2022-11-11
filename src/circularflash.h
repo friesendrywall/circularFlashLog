@@ -38,10 +38,6 @@
 #define FLASH_MAX_DATE_LEN 32
 #endif
 
-#if FLASH_MAX_DATE_LEN >= FLASH_WRITE_SIZE
-#error "FLASH_MAX_DATE_LEN too long"
-#endif
-
 #ifndef FLASH_DEBUG
 #define FLASH_DEBUG(...)
 #endif
@@ -60,6 +56,10 @@
 
 #ifndef FLASH_WRITE_SIZE
 #define FLASH_WRITE_SIZE 0x100
+#endif
+
+#if FLASH_MAX_DATE_LEN >= FLASH_WRITE_SIZE
+#error "FLASH_MAX_DATE_LEN too long"
 #endif
 
 #define FLASH_MIN_BUFF (FLASH_WRITE_SIZE + FLASH_MAX_DATE_LEN)
