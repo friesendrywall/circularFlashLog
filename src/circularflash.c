@@ -326,8 +326,14 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
   }
 
   if (LINES_READ_ALL == lines) {
+    if ((space - file->seekPos) < buffLen) {
+      buffLen = space - file->seekPos;
+      if (!buffLen) {
+        return 0;
+      }
+    }
     ret = circularReadSection(log, (uint8_t *)buff, file->tailPtr, file->headPtr,
-                              file->seekPos, space, buffLen, &remaining);
+        file->seekPos, space, buffLen, &remaining);
     file->seekPos += ret;
     return ret;
   } else {
@@ -360,6 +366,7 @@ static int32_t readForward(circ_log_t* log, circular_FILE* file, void* buff,
             totalRet += len;
             lines--;
             if (lines == 0) {
+              file->seekPos += len;
               break;
             }
           }
