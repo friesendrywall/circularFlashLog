@@ -128,7 +128,7 @@ uint32_t circularReadLines(circ_log_t *log, uint8_t *buff, uint32_t buffSize,
 uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
                           circular_FILE *file);
 
-uint32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
+int32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
                           uint32_t buffLen, CIRC_DIR dir, int32_t lines,
                           char *filter);
 
