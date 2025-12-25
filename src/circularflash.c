@@ -550,11 +550,11 @@ uint32_t indexedLogSearch(circ_log_t *log, void *buff, uint32_t buffLen,
   return ret;
 }
 
-uint32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
+int32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
                           uint32_t buffLen, CIRC_DIR dir, int32_t lines,
                           char *filter) {
   if (file->valid != FILE_MAGIC_MARKER) {
-    return CIRC_LOG_ERR_API;
+    return -CIRC_LOG_ERR_API;
   }
   switch (dir) {
   case CIRC_DIR_FORWARD:
@@ -562,7 +562,7 @@ uint32_t circularFileRead(circ_log_t *log, circular_FILE *file, void *buff,
   case CIRC_DIR_REVERSE:
     return readBack(log, file, buff, buffLen, lines, filter);
   default:
-    return CIRC_LOG_ERR_API;
+    return -CIRC_LOG_ERR_API;
   }
 }
 
