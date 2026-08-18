@@ -69,9 +69,9 @@ static int32_t calculateSpace(circ_log_t *log, int32_t tailPtr, int32_t headPtr)
 static void findFirstLine(circ_log_t *log, circ_log_index_t *index,
                           uint32_t sector) {
   uint32_t res, i, j;
-  for (i = 0; i < (FLASH_SECTOR_SIZE - FLASH_WRITE_SIZE);
+  for (i = 0; i < (NOR_SECTOR_SIZE - FLASH_WRITE_SIZE);
        i += FLASH_WRITE_SIZE) {
-    res = log->read(log->baseAddress + (sector * FLASH_SECTOR_SIZE), log->wBuff,
+    res = log->read(log->baseAddress + (sector * NOR_SECTOR_SIZE), log->wBuff,
                     FLASH_WRITE_SIZE + FLASH_MAX_DATE_LEN);
     if (res != FLASH_WRITE_SIZE + FLASH_MAX_DATE_LEN) {
       return;
@@ -89,19 +89,19 @@ static void findFirstLine(circ_log_t *log, circ_log_index_t *index,
 static void buildIndex(circ_log_t *log) {
   int32_t i;
   memset(log->index, 0xFF,
-         log->logsLength / FLASH_SECTOR_SIZE * sizeof(circ_log_index_t));
+         log->logsLength / NOR_SECTOR_SIZE * sizeof(circ_log_index_t));
   // Loop through open buffers reading
-  for (i = 0; i < (int32_t)log->logsLength / FLASH_SECTOR_SIZE; i++) {
+  for (i = 0; i < (int32_t)log->logsLength / NOR_SECTOR_SIZE; i++) {
     if (log->LogFlashHeadPtr > log->LogFlashTailPtr) {
       /* Normal */
-      if (i * FLASH_SECTOR_SIZE >= log->LogFlashTailPtr &&
-          i * FLASH_SECTOR_SIZE < log->LogFlashHeadPtr) {
+      if (i * NOR_SECTOR_SIZE >= log->LogFlashTailPtr &&
+          i * NOR_SECTOR_SIZE < log->LogFlashHeadPtr) {
         findFirstLine(log, &log->index[i], i);
       }
     } else {
       /* Wrapped */
-      if (i * FLASH_SECTOR_SIZE >= log->LogFlashTailPtr ||
-          i * FLASH_SECTOR_SIZE < log->LogFlashHeadPtr) {
+      if (i * NOR_SECTOR_SIZE >= log->LogFlashTailPtr ||
+          i * NOR_SECTOR_SIZE < log->LogFlashHeadPtr) {
         findFirstLine(log, &log->index[i], i);
       }
     }
@@ -280,8 +280,8 @@ uint32_t circularFileOpen(circ_log_t *log, CIRC_FLAGS flags,
   int32_t EraseSpace = calculateErasedSpace(log);
   uint32_t ret = 0;
   uint32_t i, remaining;
-  if (EraseSpace < ((FLASH_SECTOR_SIZE * 2) + (FLASH_SECTOR_SIZE / 2))) {
-    file->tailPtr += FLASH_SECTOR_SIZE;
+  if (EraseSpace < ((NOR_SECTOR_SIZE * 2) + (NOR_SECTOR_SIZE / 2))) {
+    file->tailPtr += NOR_SECTOR_SIZE;
   }
   int32_t space = calculateSpace(log, file->tailPtr, file->headPtr);
   FLASH_MUTEX_EXIT(log->osMutex);
@@ -460,14 +460,14 @@ static uint32_t findLogAtSector(circ_log_t *log, void *buff, uint32_t buffLen,
   int32_t space = calculateLogSpace(log);
   uint32_t seekPos;
   uint32_t seekAddr =
-      (sector * FLASH_SECTOR_SIZE) + log->index[sector].firstLine;
+      (sector * NOR_SECTOR_SIZE) + log->index[sector].firstLine;
   if ((int32_t)seekAddr >= log->LogFlashTailPtr) {
     seekPos = seekAddr - log->LogFlashTailPtr;
   } else { /* Wrap */
     seekPos = (log->logsLength - log->LogFlashTailPtr) + seekAddr;
   }
 
-  while (searchLen < FLASH_SECTOR_SIZE * 2) {
+  while (searchLen < NOR_SECTOR_SIZE * 2) {
     if ((uint32_t)space == seekPos) {
       return 0;
     }
@@ -519,8 +519,8 @@ uint32_t indexedLogSearch(circ_log_t *log, void *buff, uint32_t buffLen,
   // Search for enclosing log newest to oldest
   if (log->LogFlashHeadPtr > log->LogFlashTailPtr) {
     /* Normal */
-    for (sect = log->LogFlashHeadPtr / FLASH_SECTOR_SIZE;
-         sect >= log->LogFlashTailPtr / FLASH_SECTOR_SIZE; sect--) {
+    for (sect = log->LogFlashHeadPtr / NOR_SECTOR_SIZE;
+         sect >= log->LogFlashTailPtr / NOR_SECTOR_SIZE; sect--) {
       if (time < previous && time >= log->index[sect].time) {
         ret = findLogAtSector(log, buff, buffLen, time, sect);
         goto found;
@@ -529,15 +529,15 @@ uint32_t indexedLogSearch(circ_log_t *log, void *buff, uint32_t buffLen,
     }
   } else {
     /* Wrapped */
-    for (sect = log->LogFlashHeadPtr / FLASH_SECTOR_SIZE; sect >= 0; sect--) {
+    for (sect = log->LogFlashHeadPtr / NOR_SECTOR_SIZE; sect >= 0; sect--) {
       if (time < previous && time >= log->index[sect].time) {
         ret = findLogAtSector(log, buff, buffLen, time, sect);
         goto found;
       }
       previous = log->index[sect].time;
     }
-    for (sect = (log->logsLength / FLASH_SECTOR_SIZE) - 1;
-         sect >= log->LogFlashTailPtr / FLASH_SECTOR_SIZE; sect--) {
+    for (sect = (log->logsLength / NOR_SECTOR_SIZE) - 1;
+         sect >= log->LogFlashTailPtr / NOR_SECTOR_SIZE; sect--) {
       if (time < previous && time >= log->index[sect].time) {
         ret = findLogAtSector(log, buff, buffLen, time, sect);
         goto found;
@@ -662,7 +662,7 @@ uint32_t circularClearLog(circ_log_t *log) {
   FLASH_DEBUG("FLASH: (%s) Entire flash erased\r\n", log->name);
   log->LogFlashTailPtr = log->LogFlashHeadPtr = 0;
   if (log->index && log->parseTime) {
-    memset(log->index, 0xFF, log->logsLength / FLASH_SECTOR_SIZE);
+    memset(log->index, 0xFF, log->logsLength / NOR_SECTOR_SIZE);
   }
   FLASH_MUTEX_EXIT(log->osMutex);
   return CIRC_LOG_ERR_NONE;
@@ -679,8 +679,8 @@ uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len) {
   uint32_t res, firstlen;
   CIRCULAR_LOG_ASSERT(log != NULL);
   CIRCULAR_LOG_ASSERT(buf != NULL);
-  if (len > FLASH_SECTOR_SIZE) {
-    len = FLASH_SECTOR_SIZE;
+  if (len > NOR_SECTOR_SIZE) {
+    len = NOR_SECTOR_SIZE;
   }
   FLASH_MUTEX_ENTER(log->osMutex);
   EraseSpace = calculateErasedSpace(log);
@@ -693,22 +693,22 @@ uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len) {
     FLASH_DEBUG("FLASH: (%s) Entire flash erased\r\n", log->name);
     log->LogFlashTailPtr = log->LogFlashHeadPtr = 0;
     if (log->index && log->parseTime) {
-      memset(log->index, 0xFF, log->logsLength / FLASH_SECTOR_SIZE);
+      memset(log->index, 0xFF, log->logsLength / NOR_SECTOR_SIZE);
     }
-  } else if (EraseSpace < (FLASH_SECTOR_SIZE * 2)) {
+  } else if (EraseSpace < (NOR_SECTOR_SIZE * 2)) {
     // Erase next sector in line
     if (log->erase(log->baseAddress + log->LogFlashTailPtr,
-                       FLASH_SECTOR_SIZE) != FLASH_SECTOR_SIZE) {
+                       NOR_SECTOR_SIZE) != NOR_SECTOR_SIZE) {
       FLASH_DEBUG("FLASH: (%s) Erase IO error\r\n", log->name);
       goto badexit;
     }
     FLASH_DEBUG("FLASH: (%s) Sector at address 0x%X erased\r\n", log->name,
                 log->baseAddress + log->LogFlashTailPtr);
     if (log->index && log->parseTime) {
-      memset(&log->index[log->LogFlashTailPtr / FLASH_SECTOR_SIZE], 0xFF,
+      memset(&log->index[log->LogFlashTailPtr / NOR_SECTOR_SIZE], 0xFF,
              sizeof(circ_log_index_t));
     }
-    log->LogFlashTailPtr += FLASH_SECTOR_SIZE;
+    log->LogFlashTailPtr += NOR_SECTOR_SIZE;
     if (log->LogFlashTailPtr >= (int32_t)log->logsLength) {
       log->LogFlashTailPtr = 0;
     }
@@ -746,10 +746,10 @@ uint32_t circularWriteLog(circ_log_t *log, uint8_t *buf, uint32_t len) {
     log->LogFlashHeadPtr += len;
   }
 
-  uint32_t headSector = headStart / FLASH_SECTOR_SIZE;
+  uint32_t headSector = headStart / NOR_SECTOR_SIZE;
   if (log->index && log->parseTime &&
       log->index[headSector].time == 0xFFFFFFFF) {
-    log->index[headSector].firstLine = headStart % FLASH_SECTOR_SIZE;
+    log->index[headSector].firstLine = headStart % NOR_SECTOR_SIZE;
     log->index[headSector].time = log->parseTime((const char *)buf);
   }
   FLASH_MUTEX_EXIT(log->osMutex);
@@ -787,13 +787,13 @@ uint32_t circularLogInit(circ_log_t *log) {
   if (buf[0] == FLASH_ERASED) {
     // Search for tail first
     for (i = 1; i < FLASH_SECTORS(log->logsLength); i++) {
-      res = log->read(log->baseAddress + (FLASH_SECTOR_SIZE * i), buf, 4);
+      res = log->read(log->baseAddress + (NOR_SECTOR_SIZE * i), buf, 4);
       if (res != 4) {
         goto badexit;
       }
 
       if (buf[0] != FLASH_ERASED) {
-        log->LogFlashTailPtr = i * FLASH_SECTOR_SIZE;
+        log->LogFlashTailPtr = i * NOR_SECTOR_SIZE;
         break;
       }
     }
@@ -853,14 +853,14 @@ uint32_t circularLogInit(circ_log_t *log) {
     }
 
     // Now search for tail
-    for (i = (log->LogFlashHeadPtr / FLASH_SECTOR_SIZE) + 1;
+    for (i = (log->LogFlashHeadPtr / NOR_SECTOR_SIZE) + 1;
          i < FLASH_SECTORS(log->logsLength); i++) {
-      res = log->read(log->baseAddress + (FLASH_SECTOR_SIZE * i), buf, 4);
+      res = log->read(log->baseAddress + (NOR_SECTOR_SIZE * i), buf, 4);
       if (res != 4) {
         goto badexit;
       }
       if (buf[0] != FLASH_ERASED) {
-        log->LogFlashTailPtr = i * FLASH_SECTOR_SIZE;
+        log->LogFlashTailPtr = i * NOR_SECTOR_SIZE;
         break;
       }
     }

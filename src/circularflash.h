@@ -30,8 +30,10 @@
 
 #define CIRCULAR_FLASH_VERSION "1.05"
 
+#define NOR_SECTOR_SIZE 0x1000
+
 #define FLASH_ERASED (0xFF)
-#define FLASH_SECTORS(logLength) (logLength / FLASH_SECTOR_SIZE)
+#define FLASH_SECTORS(logLength) (logLength / NOR_SECTOR_SIZE)
 #define LINES_READ_ALL (-1)
 
 #ifndef FLASH_MAX_DATE_LEN
@@ -48,10 +50,6 @@
 
 #ifndef SEARCH_BUFF_SIZE
 #define SEARCH_BUFF_SIZE 1024
-#endif
-
-#ifndef FLASH_SECTOR_SIZE
-#define FLASH_SECTOR_SIZE 0x1000
 #endif
 
 #ifndef FLASH_WRITE_SIZE
